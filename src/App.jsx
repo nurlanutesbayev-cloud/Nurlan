@@ -212,15 +212,20 @@ const FALLBACK = [
   {...BASE, name:"Виски Jack Daniel's Honey / Tennessee", subname:"Jack Daniel's / Jim Beam Honey", category:"Алкоголь", status:"📈 Растёт", heat:7, region:"Америка", instagram_idea:"«Американский виски в Аяне» — как правильно пить виски. Образовательный контент для мужской аудитории.", russia_status:"Активно продаётся", russia_detail:"Все федеральные сети, широкая дистрибуция", kz_status:"Появляется", kz_detail:"Magnum Premium, Arbuz, рестораны — розница ограничена", social1_platform:"TikTok", social1_desc:"«Виски для начинающих» — образовательный формат набирает популярность", social2_platform:"Instagram", social2_desc:"Мужской lifestyle контент с виски у казахстанских блогеров", procurement_ready:"🟡 Ищем поставщика", price_range:"8 500–15 000 ₸", competitors:["Arbuz","Рамстор"]},
 ];
 
+const EDGE_AI_URL = "https://acvbjpjtohtkulmbpng.supabase.co/functions/v1/generate-content";
+
 async function callAI(prompt) {
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST",
-    headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1800, messages:[{role:"user",content:prompt}]}),
+  const resp = await fetch(EDGE_AI_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+    },
+    body: JSON.stringify({ prompt, max_tokens: 1800 }),
   });
-  if (!resp.ok) { const t=await resp.text().catch(()=>""); throw new Error(`HTTP ${resp.status}: ${t.slice(0,150)}`); }
+  if (!resp.ok) { const t = await resp.text().catch(() => ""); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 150)}`); }
   const data = await resp.json();
-  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").replace(/```json|```/gi,"").trim();
+  return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
 }
 
 function parseJsonArray(text) {
