@@ -6,15 +6,28 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const sb = {
   async getAll() {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        console.log(`DB attempt ${attempt}`);
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+          }
+        });
+        console.log(`DB status:`, r.status);
+        if (!r.ok) { console.error("DB error:", await r.text()); continue; }
+        const data = await r.json();
+        console.log("DB rows:", data.length);
+        return data;
+      } catch(e) {
+        console.error(`DB attempt ${attempt} error:`, e.message);
+        if (attempt < 3) await new Promise(res => setTimeout(res, 2500));
       }
-    });
-    if (!r.ok) { console.error("getAll failed:", r.status, await r.text()); return []; }
-    return r.json();
+    }
+    return [];
   },
   async upsertAll(trends) {
     const rows = trends.map(t => ({
