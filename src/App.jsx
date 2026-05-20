@@ -71,6 +71,17 @@ const sb = {
     if (!r.ok) { const e = await r.text(); console.error("upsertAll failed:", r.status, e); return null; }
     return r.json();
   },
+  async getLastUpdated() {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=created_at&order=created_at.desc&limit=1`, {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!r.ok) return null;
+      const data = await r.json();
+      if (data && data.length > 0 && data[0].created_at) return new Date(data[0].created_at);
+      return null;
+    } catch(_) { return null; }
+  },
   async updateOne(id, patch) {
     if (!id) return;
     try {
@@ -451,6 +462,15 @@ export default function App() {
 
   // Load from Supabase via Edge Function on mount
   useEffect(() => {
+    sb.getLastUpdated().then(date => {
+      if (date) {
+        const str = date.toLocaleString("ru-KZ");
+        setLastUpdate(str);
+        setLastUpdateTs(date.getTime());
+        localStorage.setItem("ayan_last_update", str);
+        localStorage.setItem("ayan_last_update_ts", String(date.getTime()));
+      }
+    });
     sb.getAll().then(data => {
       console.log("Loaded:", data ? data.length : 0);
       if (data && data.length > 0) {
