@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
- 
+
 // Supabase connection
 const SUPABASE_URL = "https://acvbjpjtohtkulmbpng.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdmJqcGp0b2h0a3VsbWJicG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjg4NzgsImV4cCI6MjA5NDgwNDg3OH0.mLrrZahUIC4Eko56L-PJFfkEVE6e0iDTK_Ipuf4KKVM";
- 
+
 const sb = {
   async getAll() {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
@@ -13,7 +13,6 @@ const sb = {
   },
   async upsertAll(trends) {
     const rows = trends.map(t => ({
-      id: t.id || undefined,
       name: t.name, subname: t.subname, category: t.category,
       status: t.status, heat: t.heat, region: t.region,
       instagram_idea: t.instagram_idea,
@@ -27,9 +26,14 @@ const sb = {
       request_num: t.request_num || "",
       request_status: t.request_status || "—",
     }));
+    // Delete all and re-insert for clean sync
+    await fetch(`${SUPABASE_URL}/rest/v1/trends?id=neq.00000000-0000-0000-0000-000000000000`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
     await fetch(`${SUPABASE_URL}/rest/v1/trends`, {
       method: "POST",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates" },
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
       body: JSON.stringify(rows)
     });
   },
@@ -48,11 +52,11 @@ const sb = {
     });
   }
 };
- 
+
 const CATEGORIES = ["Все","Снеки","Напитки","Молочка","Здоровое питание","Бытовая химия","Кондитерка","Готовая еда","Мороженое","Полуфабрикаты","Морепродукты","Мама и младенец","Колбасные изделия","Соусы","Овощи и фрукты","Хлебобулочные","Алкоголь","Высокобелковые","Консервация"];
 const COMPETITORS = ["Magnum","Small","Arbuz","Рамстор","Южный","Корзина","Оптима","Норма","Другой"];
 const CAT_ICONS = {"Мороженое":"🍦","Полуфабрикаты":"🥩","Морепродукты":"🦐","Мама и младенец":"👶","Колбасные изделия":"🌭","Соусы":"🫙","Овощи и фрукты":"🥦","Хлебобулочные":"🍞","Алкоголь":"🍺","Высокобелковые":"💪","Здоровое питание":"🌿","Консервация":"🥫"};
- 
+
 const CAT_DESCRIPTIONS = {
   "Снеки":"Чипсы, сухари, орешки, нори, попкорн, злаковые батончики. Без протеиновых продуктов.",
   "Напитки":"Вода, соки, газировка, энергетики, RTD кофе, матча, чай, функциональные напитки.",
@@ -73,7 +77,7 @@ const CAT_DESCRIPTIONS = {
   "Высокобелковые":"Спортивная аудитория: протеиновые батончики, RTD коктейли, Экспонента, высокобелковые йогурты/сыры/творог, яичный белок.",
   "Консервация":"Мясные, рыбные, овощные, фруктовые консервы — глубокая категория.",
 };
- 
+
 const REQUEST_STATUSES = [
   {value:"—",            color:"#6b7280", bg:"rgba(107,114,128,0.15)"},
   {value:"Создана",      color:"#60a5fa", bg:"rgba(59,130,246,0.15)"},
@@ -81,7 +85,7 @@ const REQUEST_STATUSES = [
   {value:"Одобрена",     color:"#22c55e", bg:"rgba(34,197,94,0.15)"},
   {value:"Отклонена",    color:"#ff4d6d", bg:"rgba(255,77,109,0.15)"},
 ];
- 
+
 const REGION_MAP = {
   "Азия":       {bg:"rgba(251,146,60,0.18)", color:"#fb923c", icon:"🌏"},
   "Америка":    {bg:"rgba(59,130,246,0.18)", color:"#60a5fa", icon:"🌎"},
@@ -108,7 +112,7 @@ const KANBAN_COLS = [
   {id:"done",   label:"✅ В ассортименте",   color:"#22c55e"},
 ];
 const BASE = {procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
- 
+
 const FALLBACK = [
   {...BASE, name:"Корейская лапша Buldak", subname:"Samyang", category:"Готовая еда", status:"🔥 Горячий", heat:10, region:"Азия", instagram_idea:"Reaction-видео с самой острой лапшей — viral-контент!", russia_status:"Активно продаётся", russia_detail:"Wildberries, Ozon, азиатские маркеты", kz_status:"Активно продаётся", kz_detail:"Kaspi, Magnum, Small, азиатские маркеты Алматы", social1_platform:"TikTok", social1_desc:"#buldakchallenge — 2 млрд просмотров", social2_platform:"Instagram", social2_desc:"Reaction-видео казахстанских блогеров", procurement_ready:"🟢 Готов к закупке", price_range:"800–1 200 ₸", competitors:["Magnum","Small"]},
   {...BASE, name:"Матча (латте и порошок)", subname:"Ito En / Jade Leaf", category:"Напитки", status:"🔥 Горячий", heat:9, region:"Азия", instagram_idea:"Эстетичные фото матча-латте — японский тренд уже в Аяне!", russia_status:"Активно продаётся", russia_detail:"ВкусВилл, Wildberries, кофейни", kz_status:"Появляется", kz_detail:"Кофейни Алматы и Астаны, Kaspi", social1_platform:"TikTok", social1_desc:"Матча-рецепты — миллиарды просмотров", social2_platform:"Instagram", social2_desc:"Эстетика кофейных напитков", procurement_ready:"🟡 Ищем поставщика", price_range:"1 500–3 500 ₸", competitors:["Arbuz"]},
@@ -162,7 +166,7 @@ const FALLBACK = [
   {...BASE, name:"Безалкогольное вино Leitz / Oddbird", subname:"Leitz Eins Zwei Zero / Oddbird Sparkling", category:"Алкоголь", status:"✨ Новинка", heat:8, region:"Европа", instagram_idea:"«Праздник без алкоголя» — идеально для Рамадана, беременных, водителей.", russia_status:"Появляется", russia_detail:"«Азбука вкуса», Wildberries — быстрорастущий сегмент", kz_status:"Редко встречается", kz_detail:"Единичные позиции в Arbuz — огромная ниша для КЗ", social1_platform:"Instagram", social1_desc:"Халяль-лайфстайл блогеры КЗ показывают безалкогольные альтернативы", social2_platform:"TikTok", social2_desc:"«Как отмечать без алкоголя» — актуально для мусульманской аудитории", procurement_ready:"🟡 Ищем поставщика", price_range:"2 500–5 500 ₸", competitors:["Arbuz"]},
   {...BASE, name:"Виски Jack Daniel's Honey / Tennessee", subname:"Jack Daniel's / Jim Beam Honey", category:"Алкоголь", status:"📈 Растёт", heat:7, region:"Америка", instagram_idea:"«Американский виски в Аяне» — как правильно пить виски. Образовательный контент для мужской аудитории.", russia_status:"Активно продаётся", russia_detail:"Все федеральные сети, широкая дистрибуция", kz_status:"Появляется", kz_detail:"Magnum Premium, Arbuz, рестораны — розница ограничена", social1_platform:"TikTok", social1_desc:"«Виски для начинающих» — образовательный формат набирает популярность", social2_platform:"Instagram", social2_desc:"Мужской lifestyle контент с виски у казахстанских блогеров", procurement_ready:"🟡 Ищем поставщика", price_range:"8 500–15 000 ₸", competitors:["Arbuz","Рамстор"]},
 ];
- 
+
 async function callAI(prompt) {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method:"POST",
@@ -173,18 +177,18 @@ async function callAI(prompt) {
   const data = await resp.json();
   return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").replace(/```json|```/gi,"").trim();
 }
- 
+
 function parseJsonArray(text) {
   const m = text.match(/\[[\s\S]*\]/);
   if (!m) return null;
   try { return JSON.parse(m[0]); } catch(_){}
   try { return JSON.parse(m[0].replace(/,?\s*\{[^}]*$/,"")+"]"); } catch(_){ return null; }
 }
- 
+
 function Tag({ children, bg, color }) {
   return <span style={{display:"inline-block",fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:5,textTransform:"uppercase",letterSpacing:"0.05em",background:bg,color}}>{children}</span>;
 }
- 
+
 function HeatBar({ value }) {
   return (
     <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -195,7 +199,7 @@ function HeatBar({ value }) {
     </div>
   );
 }
- 
+
 function ReadyBadge({ value, onChange }) {
   const cfg = READY_CONFIG[value] || READY_CONFIG["🟡 Ищем поставщика"];
   return (
@@ -205,7 +209,7 @@ function ReadyBadge({ value, onChange }) {
     </select>
   );
 }
- 
+
 function CompetitorCell({ competitors, onChange }) {
   const [adding, setAdding] = useState(false);
   const remove = c => onChange(competitors.filter(x=>x!==c));
@@ -233,7 +237,7 @@ function CompetitorCell({ competitors, onChange }) {
     </div>
   );
 }
- 
+
 function ProcurementTooltip() {
   const [show, setShow] = useState(false);
   return (
@@ -264,7 +268,7 @@ function ProcurementTooltip() {
     </div>
   );
 }
- 
+
 function CategoryFilterBtn({ cat, active, onClick }) {
   const [show, setShow] = useState(false);
   const icon = CAT_ICONS[cat] || "";
@@ -284,7 +288,7 @@ function CategoryFilterBtn({ cat, active, onClick }) {
     </div>
   );
 }
- 
+
 function RequestCell({ requestNum, requestStatus, onNumChange, onStatusChange }) {
   const statusCfg = REQUEST_STATUSES.find(s=>s.value===requestStatus) || REQUEST_STATUSES[0];
   return (
@@ -302,7 +306,7 @@ function RequestCell({ requestNum, requestStatus, onNumChange, onStatusChange })
     </div>
   );
 }
- 
+
 function KanbanBoard({ trends, onMove }) {
   const byCol = id => trends.filter(t=>(t.kanban||"idea")===id);
   return (
@@ -330,7 +334,7 @@ function KanbanBoard({ trends, onMove }) {
     </div>
   );
 }
- 
+
 export default function App() {
   const [trends, setTrends] = useState([]);
   const [dbLoaded, setDbLoaded] = useState(false);
@@ -346,7 +350,7 @@ export default function App() {
   const [instaLoading, setInstaLoading] = useState(false);
   const [instaPosts, setInstaPosts] = useState(null);
   const [tab, setTab] = useState("table");
- 
+
   const updateTrend = (name, patch) => {
     setTrends(prev => prev.map(t => {
       if (t.name !== name) return t;
@@ -356,7 +360,7 @@ export default function App() {
     }));
   };
   const moveKanban = (name, col) => updateTrend(name,{kanban:col});
- 
+
   // Load from Supabase on mount
   useEffect(() => {
     sb.getAll().then(data => {
@@ -366,14 +370,23 @@ export default function App() {
       } else {
         // First time — load fallback and save to DB
         setTrends(FALLBACK);
-        sb.upsertAll(FALLBACK).then(() => setDbLoaded(true));
+        sb.upsertAll(FALLBACK).then(() => {
+          // Reload from DB to get IDs
+          sb.getAll().then(fresh => {
+            if (fresh && fresh.length > 0) {
+              setTrends(fresh.map(t => ({...BASE, ...t, competitors: t.competitors || []})));
+            }
+            setDbLoaded(true);
+          });
+        });
       }
-    }).catch(() => {
+    }).catch((e) => {
+      console.error("DB load error:", e);
       setTrends(FALLBACK);
       setDbLoaded(false);
     });
   }, []);
- 
+
   const fetchTrends = async () => {
     setLoading(true); setError("");
     const batches = ["Снеки, Напитки, Готовая еда, Полуфабрикаты","Молочка, Здоровье, Мороженое, Высокобелковые","Бытовая химия, Кондитерка, Морепродукты, Мама и младенец","Колбасные изделия, Соусы, Овощи и фрукты","Хлебобулочные, Алкоголь"];
@@ -397,7 +410,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
     } catch(e) { setError(e.message); }
     setLoading(false); setProgress("");
   };
- 
+
   const generatePost = async (item) => {
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null);
     try {
@@ -414,14 +427,14 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
     }
     setInstaLoading(false);
   };
- 
+
   const exportCSV = () => {
     const h=["#","Товар","Бренд","Категория","Регион","Статус","Интерес","Цена","Готовность к закупке","Конкуренты","Идея для контента","RU","RU детали","KZ","KZ детали","Соцсети 1","Соцсети 2","№ Заявки","Статус заявки","Канбан"];
     const rows=trends.map((t,i)=>[i+1,t.name,t.subname,t.category,t.region,(t.status||"").replace(/[🔥✨📈✅]/g,"").trim(),t.heat,t.price_range||"—",(t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim(),(t.competitors||[]).join("; "),`"${t.instagram_idea||""}"`,t.russia_status,`"${t.russia_detail||""}"`,t.kz_status,`"${t.kz_detail||""}"`,`"[${t.social1_platform}] ${t.social1_desc||""}"`,`"[${t.social2_platform}] ${t.social2_desc||""}"`,t.request_num||"—",t.request_status||"—",t.kanban||"idea"]);
     const csv=[h,...rows].map(r=>r.join(",")).join("\n");
     const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"})); a.download=`Аян_FMCG_${new Date().toLocaleDateString("ru-KZ").replace(/\./g,"-")}.csv`; a.click();
   };
- 
+
   const filtered = trends.filter(t=>{
     const catOk=filter==="Все"||t.category===filter;
     const readyOk=readyFilter==="Все"||(t.procurement_ready||"")===readyFilter;
@@ -429,17 +442,17 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
     const searchOk=!q||(t.name||"").toLowerCase().includes(q)||(t.category||"").toLowerCase().includes(q);
     return catOk&&readyOk&&searchOk;
   });
- 
+
   const B=(x={})=>({background:"#1a1a26",color:"#f0f0f8",border:"1px solid #2a2a3d",borderRadius:8,padding:"9px 14px",fontWeight:600,fontSize:12,cursor:"pointer",...x});
   const tabBtn=t=>B({background:tab===t?"#7c3aed":"#1a1a26",color:tab===t?"#fff":"#f0f0f8",border:"1px solid "+(tab===t?"#7c3aed":"#2a2a3d")});
   const fBtn=a=>({background:a?"#7c3aed":"transparent",color:a?"#fff":"#6b7280",border:"1px solid "+(a?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"6px 12px",fontSize:11,cursor:"pointer"});
   const TH={fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#6b7280",padding:"10px 12px",textAlign:"left",background:"#12121a",borderBottom:"1px solid #2a2a3d",whiteSpace:"nowrap"};
   const TD={padding:"10px 12px",fontSize:12,verticalAlign:"top",borderBottom:"1px solid #1e1e2e"};
- 
+
   return (
     <div style={{minHeight:"100vh",background:"#0a0a0f",color:"#f0f0f8",fontFamily:"system-ui,sans-serif",padding:16}}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
- 
+
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",fontWeight:800,fontSize:13,padding:"6px 14px",borderRadius:6,letterSpacing:1}}>АЯН</div>
@@ -472,17 +485,17 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
           <span style={{color:dbLoaded?"#22c55e":"#fbbf24",fontWeight:600}}>{dbLoaded?"🗄️ БД подключена":"⚡ Локальный режим"}</span>
         </div>
       </div>
- 
+
       <div style={{fontWeight:800,fontSize:22,background:"linear-gradient(135deg,#f0f0f8 40%,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>Трендовые товары для Казахстана</div>
       <div style={{color:"#6b7280",fontSize:13,marginBottom:20}}>Светофор закупки · Конкуренты · Цены · Канбан воронка</div>
- 
+
       {trends.length === 0 && (
         <div style={{textAlign:"center",padding:60,color:"#6b7280"}}>
           <div style={{width:32,height:32,border:"3px solid #2a2a3d",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 16px"}}/>
           <div style={{fontSize:14}}>Загружаем данные из базы...</div>
         </div>
       )}
- 
+
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
         {[["Товаров",trends.length,"#22c55e"],["🔥 Горячих",trends.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",trends.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",trends.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",trends.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",trends.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
           <div key={l} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:10,padding:"12px 14px"}}>
@@ -491,7 +504,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
           </div>
         ))}
       </div>
- 
+
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12,alignItems:"flex-start"}}>
         <div>
           <button style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:700,fontSize:12,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",opacity:loading?0.6:1}} disabled={loading} onClick={fetchTrends}>
@@ -503,7 +516,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
         <button style={tabBtn("table")} onClick={()=>setTab("table")}>📊 Таблица</button>
         <button style={tabBtn("kanban")} onClick={()=>setTab("kanban")}>📋 Канбан</button>
       </div>
- 
+
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
         {CATEGORIES.map(c=><CategoryFilterBtn key={c} cat={c} active={filter===c} onClick={()=>setFilter(c)}/>)}
       </div>
@@ -514,7 +527,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
         <input placeholder="🔍 Поиск..." value={search} onChange={e=>setSearch(e.target.value)}
           style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",color:"#f0f0f8",fontSize:12,width:160,outline:"none",marginLeft:"auto"}}/>
       </div>
- 
+
       {tab==="kanban" ? <KanbanBoard trends={trends} onMove={moveKanban}/> : (
         <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid #2a2a3d",fontWeight:700,fontSize:13}}>
@@ -589,7 +602,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
           </div>
         </div>
       )}
- 
+
       {instaItem&&(
         <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:14,marginTop:16,padding:16}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -611,7 +624,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
           ))}
         </div>
       )}
- 
+
       <div style={{marginTop:24,borderTop:"1px solid #2a2a3d",paddingTop:16,fontSize:11,color:"#6b7280"}}>
         Аян Супермаркет · Астана · Караганда · Темиртау · FMCG Intelligence v3.0
       </div>
