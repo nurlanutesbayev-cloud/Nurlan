@@ -7,7 +7,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const EDGE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/get-trends";
 const EDGE_UPDATE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/smooth-task";
 const EDGE_AI_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/generate-content";
- 
+
 const sb = {
   async getAll() {
     try {
@@ -212,8 +212,6 @@ const FALLBACK = [
   {...BASE, name:"Безалкогольное вино Leitz / Oddbird", subname:"Leitz Eins Zwei Zero / Oddbird Sparkling", category:"Алкоголь", status:"✨ Новинка", heat:8, region:"Европа", instagram_idea:"«Праздник без алкоголя» — идеально для Рамадана, беременных, водителей.", russia_status:"Появляется", russia_detail:"«Азбука вкуса», Wildberries — быстрорастущий сегмент", kz_status:"Редко встречается", kz_detail:"Единичные позиции в Arbuz — огромная ниша для КЗ", social1_platform:"Instagram", social1_desc:"Халяль-лайфстайл блогеры КЗ показывают безалкогольные альтернативы", social2_platform:"TikTok", social2_desc:"«Как отмечать без алкоголя» — актуально для мусульманской аудитории", procurement_ready:"🟡 Ищем поставщика", price_range:"2 500–5 500 ₸", competitors:["Arbuz"]},
   {...BASE, name:"Виски Jack Daniel's Honey / Tennessee", subname:"Jack Daniel's / Jim Beam Honey", category:"Алкоголь", status:"📈 Растёт", heat:7, region:"Америка", instagram_idea:"«Американский виски в Аяне» — как правильно пить виски. Образовательный контент для мужской аудитории.", russia_status:"Активно продаётся", russia_detail:"Все федеральные сети, широкая дистрибуция", kz_status:"Появляется", kz_detail:"Magnum Premium, Arbuz, рестораны — розница ограничена", social1_platform:"TikTok", social1_desc:"«Виски для начинающих» — образовательный формат набирает популярность", social2_platform:"Instagram", social2_desc:"Мужской lifestyle контент с виски у казахстанских блогеров", procurement_ready:"🟡 Ищем поставщика", price_range:"8 500–15 000 ₸", competitors:["Arbuz","Рамстор"]},
 ];
-
-const EDGE_AI_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/generate-content";
 
 async function callAI(prompt) {
   const resp = await fetch(EDGE_AI_URL, {
