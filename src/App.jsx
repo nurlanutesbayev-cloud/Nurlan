@@ -214,13 +214,15 @@ const FALLBACK = [
 ];
 
 async function callAI(prompt) {
-  const resp = await fetch(EDGE_AI_URL, {
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "anthropic-version": "2023-06-01",
+      "x-api-key": "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",
+      "anthropic-dangerous-direct-browser-access": "true",
     },
-    body: JSON.stringify({ prompt, max_tokens: 1800 }),
+    body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1800, messages: [{ role: "user", content: prompt }] }),
   });
   if (!resp.ok) { const t = await resp.text().catch(() => ""); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 150)}`); }
   const data = await resp.json();
