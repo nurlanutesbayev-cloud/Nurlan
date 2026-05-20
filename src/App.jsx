@@ -5,6 +5,7 @@ const SUPABASE_URL = "https://acvbjpjtohtkulmbpng.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdmJqcGp0b2h0a3VsbWJicG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjg4NzgsImV4cCI6MjA5NDgwNDg3OH0.mLrrZahUIC4Eko56L-PJFfkEVE6e0iDTK_Ipuf4KKVM";
 
 const EDGE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/get-trends";
+const EDGE_UPDATE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/smooth-task";
 
 const sb = {
   async getAll() {
@@ -72,17 +73,17 @@ const sb = {
   },
   async updateOne(id, patch) {
     if (!id) return;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?id=eq.${id}`, {
-      method: "PATCH",
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal"
-      },
-      body: JSON.stringify(patch)
-    });
-    if (!r.ok) console.error("updateOne failed:", r.status, await r.text());
+    try {
+      const r = await fetch(EDGE_UPDATE_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, patch })
+      });
+      if (!r.ok) console.error("updateOne failed:", await r.text());
+    } catch(e) { console.error("updateOne error:", e.message); }
   },
 };
 
