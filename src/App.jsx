@@ -139,11 +139,11 @@ const READY_CONFIG = {
   "🔴 Недоступно в КЗ": {color:"#ff4d6d", bg:"rgba(255,77,109,0.15)"},
 };
 const KANBAN_COLS = [
-  {id:"idea",   label:"💡 Идея",             color:"#6b7280"},
-  {id:"search", label:"🔍 Ищем поставщика",  color:"#fbbf24"},
-  {id:"nego",   label:"🤝 Переговоры",       color:"#7c3aed"},
-  {id:"test",   label:"🧪 Тест-партия",      color:"#fb923c"},
-  {id:"done",   label:"✅ В ассортименте",   color:"#22c55e"},
+  {id:"idea",        label:"💡 Идея",                    color:"#6b7280"},
+  {id:"commercial",  label:"🏢 В работе у ком. отдела", color:"#60a5fa"},
+  {id:"done",        label:"✅ В ассортименте",          color:"#22c55e"},
+  {id:"nosupplier",  label:"🔍 Поставщик не найден",    color:"#fbbf24"},
+  {id:"nodeal",      label:"🚫 Не договорились",        color:"#ff4d6d"},
 ];
 const BASE = {procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
 
@@ -323,48 +323,100 @@ function CategoryFilterBtn({ cat, active, onClick }) {
   );
 }
 
-function RequestCell({ requestNum, requestStatus, onNumChange, onStatusChange }) {
-  const statusCfg = REQUEST_STATUSES.find(s=>s.value===requestStatus) || REQUEST_STATUSES[0];
+function RequestCell({ requestNum, onNumChange }) {
   return (
-    <div style={{minWidth:140,display:"flex",flexDirection:"column",gap:5}}>
+    <div style={{minWidth:110}}>
       <input
         value={requestNum}
         onChange={e=>onNumChange(e.target.value)}
         placeholder="№ заявки"
         style={{background:"#0a0a0f",border:"1px solid #2a2a3d",borderRadius:6,padding:"4px 8px",color:"#f0f0f8",fontSize:11,outline:"none",width:"100%"}}
       />
-      <select value={requestStatus} onChange={e=>onStatusChange(e.target.value)}
-        style={{background:statusCfg.bg,color:statusCfg.color,border:"1px solid "+statusCfg.color,borderRadius:6,padding:"3px 6px",fontSize:10,fontWeight:700,cursor:"pointer",outline:"none"}}>
-        {REQUEST_STATUSES.map(s=><option key={s.value} value={s.value}>{s.value}</option>)}
-      </select>
     </div>
   );
 }
 
-function KanbanBoard({ trends, onMove }) {
-  const byCol = id => trends.filter(t=>(t.kanban||"idea")===id);
+function SocialCell({ social1_platform, social1_desc, social2_platform, social2_desc }) {
+  const items = [];
+  if (social1_platform) items.push({platform: social1_platform, desc: social1_desc});
+  if (social2_platform) items.push({platform: social2_platform, desc: social2_desc});
+  const PLATFORM_COLORS = {
+    TikTok:    {color:"#f0abfc",bg:"rgba(240,171,252,0.15)",border:"rgba(240,171,252,0.4)"},
+    Instagram: {color:"#fb923c",bg:"rgba(251,146,60,0.15)", border:"rgba(251,146,60,0.4)"},
+    YouTube:   {color:"#f87171",bg:"rgba(248,113,113,0.15)",border:"rgba(248,113,113,0.4)"},
+    Telegram:  {color:"#60a5fa",bg:"rgba(96,165,250,0.15)", border:"rgba(96,165,250,0.4)"},
+  };
+  if (!items.length) return <span style={{color:"#6b7280",fontSize:11}}>—</span>;
   return (
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginTop:4}}>
-      {KANBAN_COLS.map(col=>(
-        <div key={col.id} style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:12,padding:12,minHeight:200}}>
-          <div style={{fontSize:11,fontWeight:700,color:col.color,marginBottom:10,borderBottom:"2px solid "+col.color,paddingBottom:6}}>
-            {col.label} <span style={{color:"#6b7280"}}>({byCol(col.id).length})</span>
+    <div style={{display:"flex",flexDirection:"column",gap:5,maxWidth:170}}>
+      {items.map((it,i)=>{
+        const cfg = PLATFORM_COLORS[it.platform] || {color:"#9ca3af",bg:"rgba(156,163,175,0.15)",border:"rgba(156,163,175,0.4)"};
+        return (
+          <div key={i} style={{background:cfg.bg,border:"1px solid "+cfg.border,borderRadius:7,padding:"4px 7px"}}>
+            <div style={{fontSize:10,fontWeight:700,color:cfg.color,marginBottom:2}}>{it.platform}</div>
+            <div style={{fontSize:11,color:"#d1d5db",lineHeight:1.4}}>{it.desc}</div>
           </div>
-          {byCol(col.id).map((t,i)=>(
-            <div key={i} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:8,marginBottom:8}}>
-              <div style={{fontWeight:600,fontSize:11,marginBottom:3,color:"#f0f0f8"}}>{t.name}</div>
-              <div style={{fontSize:10,color:"#6b7280",marginBottom:5}}>{t.category} · {t.price_range||"—"}</div>
-              <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                {KANBAN_COLS.filter(c=>c.id!==col.id).map(c=>(
-                  <span key={c.id} onClick={()=>onMove(t.name,c.id)} style={{fontSize:9,padding:"2px 5px",borderRadius:3,background:"rgba(124,58,237,0.15)",color:"#a78bfa",cursor:"pointer",border:"1px solid #7c3aed"}}>
-                    →{c.label.split(" ")[0]}
-                  </span>
-                ))}
-              </div>
-            </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function KanbanBoard({ trends, onMove, filter }) {
+  const [catDrill, setCatDrill] = useState(null);
+  const filtered = trends.filter(t => {
+    const catOk = filter==="Все" || t.category===filter;
+    const drillOk = !catDrill || t.category===catDrill;
+    return catOk && drillOk;
+  });
+  const byCol = id => filtered.filter(t=>(t.kanban||"idea")===id);
+
+  const cats = [...new Set(filtered.map(t=>t.category))].filter(Boolean).sort();
+
+  return (
+    <div>
+      {filter==="Все" && (
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
+          <span style={{fontSize:11,color:"#6b7280",marginRight:4}}>Категория:</span>
+          <button onClick={()=>setCatDrill(null)} style={{background:!catDrill?"#7c3aed":"transparent",color:!catDrill?"#fff":"#6b7280",border:"1px solid "+(!catDrill?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Все</button>
+          {cats.map(c=>(
+            <button key={c} onClick={()=>setCatDrill(catDrill===c?null:c)}
+              style={{background:catDrill===c?"#7c3aed":"transparent",color:catDrill===c?"#fff":"#6b7280",border:"1px solid "+(catDrill===c?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>
+              {CAT_ICONS[c]||""} {c}
+            </button>
           ))}
         </div>
-      ))}
+      )}
+      {catDrill && (
+        <div style={{marginBottom:8,fontSize:12,color:"#a78bfa",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{cursor:"pointer",color:"#6b7280",fontSize:11}} onClick={()=>setCatDrill(null)}>← Все категории</span>
+          <span>/ {CAT_ICONS[catDrill]||""} {catDrill}</span>
+          <span style={{color:"#6b7280"}}>({filtered.length} товаров)</span>
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginTop:4}}>
+        {KANBAN_COLS.map(col=>(
+          <div key={col.id} style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:12,padding:12,minHeight:200}}>
+            <div style={{fontSize:11,fontWeight:700,color:col.color,marginBottom:10,borderBottom:"2px solid "+col.color,paddingBottom:6}}>
+              {col.label} <span style={{color:"#6b7280"}}>({byCol(col.id).length})</span>
+            </div>
+            {byCol(col.id).map((t,i)=>(
+              <div key={i} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:8,marginBottom:8}}>
+                <div style={{fontWeight:600,fontSize:11,marginBottom:2,color:"#f0f0f8"}}>{t.name}</div>
+                <div style={{fontSize:10,color:"#6b7280",marginBottom:2}}>{t.category}</div>
+                <div style={{fontSize:10,color:"#fbbf24",marginBottom:5}}>{t.price_range||"—"}</div>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                  {KANBAN_COLS.filter(c=>c.id!==col.id).map(c=>(
+                    <span key={c.id} onClick={()=>onMove(t.name,c.id)} style={{fontSize:9,padding:"2px 5px",borderRadius:3,background:"rgba(124,58,237,0.15)",color:"#a78bfa",cursor:"pointer",border:"1px solid #7c3aed"}}>
+                      →{c.label.split(" ")[1]||c.label.split(" ")[0]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -377,12 +429,14 @@ export default function App() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("Все");
   const [readyFilter, setReadyFilter] = useState("Все");
+  const [requestFilter, setRequestFilter] = useState("Все");
   const [search, setSearch] = useState("");
-  const [lastUpdate, setLastUpdate] = useState("");
-  const [lastUpdateTs, setLastUpdateTs] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(() => localStorage.getItem("ayan_last_update") || "");
+  const [lastUpdateTs, setLastUpdateTs] = useState(() => Number(localStorage.getItem("ayan_last_update_ts")) || null);
   const [instaItem, setInstaItem] = useState(null);
   const [instaLoading, setInstaLoading] = useState(false);
   const [instaPosts, setInstaPosts] = useState(null);
+  const [contentModal, setContentModal] = useState(false);
   const [tab, setTab] = useState("table");
 
   const updateTrend = (name, patch) => {
@@ -431,25 +485,31 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
       await sb.upsertAll(all);
       setDbLoaded(true);
       const now = new Date();
-      setLastUpdate(now.toLocaleString("ru-KZ"));
+      const nowStr = now.toLocaleString("ru-KZ");
+      setLastUpdate(nowStr);
       setLastUpdateTs(now.getTime());
+      localStorage.setItem("ayan_last_update", nowStr);
+      localStorage.setItem("ayan_last_update_ts", String(now.getTime()));
     } catch(e) { setError(e.message); }
     setLoading(false); setProgress("");
   };
 
   const generatePost = async (item) => {
-    setInstaItem(item); setInstaLoading(true); setInstaPosts(null);
+    setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
     try {
-      const text = await callAI(`Ты SMM-менеджер супермаркета Аян (Казахстан). Создай контент-пакет для товара: ${item.name} (${item.subname||""}).
-Верни JSON массив из 3 объектов без markdown:
+      const text = await callAI(`Ты SMM-менеджер и маркетолог супермаркета Аян (Казахстан, города: Астана, Кар аганда, Темиртау). Товар: ${item.name} (${item.subname||""}), категория: ${item.category}.
+Верни JSON массив из 6 объектов без markdown:
 [
-  {"variant":"📝 Instagram пост","caption":"80-120 слов с эмодзи для ленты","hashtags":"15 хэштегов для Казахстана"},
-  {"variant":"🎬 Идея для Reels","caption":"Сценарий короткого видео 15-30 сек: что снимать, текст на экране, музыка","hashtags":"10 хэштегов"},
-  {"variant":"📲 Stories (серия)","caption":"3 слайда Stories: слайд 1, слайд 2, слайд 3 — с призывом к действию","hashtags":"5 хэштегов"}
+  {"variant":"📝 Instagram — пост в ленту","caption":"90-120 слов с эмодзи, живой и вовлекающий текст","hashtags":"15 хэштегов для Казахстана","tip":"совет по оформлению фото/визуала"},
+  {"variant":"🎬 TikTok / Reels — сценарий","caption":"Детальный сценарий: хук (первые 3 сек), что снимать, текст на экране, закадровый текст, призыв. 15-30 сек.","hashtags":"10 хэштегов","tip":"идея для музыки или звука"},
+  {"variant":"📲 Instagram Stories — серия","caption":"3 слайда: [Слайд 1] — [Слайд 2] — [Слайд 3] с призывом к действию и интерактивом (опрос/слайдер/вопрос)","hashtags":"5 хэштегов","tip":"совет по стикерам"},
+  {"variant":"📢 Telegram — анонс","caption":"Короткий и ёмкий текст 40-60 слов для Telegram-канала магазина с эмодзи-маркерами","hashtags":"3 хэштега","tip":"когда публиковать для максимального охвата"},
+  {"variant":"🏪 Промо офлайн — акция в магазине","caption":"Идея промо-акции прямо в торговом зале: механика (дегустация/конкурс/подарок/скидка), что нужно подготовить, как оформить зону","hashtags":"","tip":"период проведения и целевая аудитория"},
+  {"variant":"🎁 Промо офлайн — спецпредложение","caption":"Идея бандл-предложения или спеццены: что объединить с товаром, ценовая механика, как выложить на полке, POS-материалы","hashtags":"","tip":"потенциальный прирост продаж и категории"}
 ]`);
-      setInstaPosts(parseJsonArray(text)||[{variant:"Базовый пост",caption:item.instagram_idea,hashtags:"#Аян #Казахстан #FMCG"}]);
+      setInstaPosts(parseJsonArray(text)||[{variant:"Базовый пост",caption:item.instagram_idea,hashtags:"#Аян #Казахстан #FMCG",tip:""}]);
     } catch(_) {
-      setInstaPosts([{variant:"Базовый пост",caption:`🛒 ${item.name} уже в Аяне! ${item.instagram_idea}`,hashtags:"#Аян #Казахстан #Супермаркет"}]);
+      setInstaPosts([{variant:"Базовый пост",caption:`🛒 ${item.name} уже в Аяне! ${item.instagram_idea}`,hashtags:"#Аян #Казахстан #Супермаркет",tip:""}]);
     }
     setInstaLoading(false);
   };
@@ -464,9 +524,10 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
   const filtered = trends.filter(t=>{
     const catOk=filter==="Все"||t.category===filter;
     const readyOk=readyFilter==="Все"||(t.procurement_ready||"")===readyFilter;
+    const statusOk=requestFilter==="Все"||(t.kanban||"idea")===requestFilter;
     const q=search.toLowerCase();
     const searchOk=!q||(t.name||"").toLowerCase().includes(q)||(t.category||"").toLowerCase().includes(q);
-    return catOk&&readyOk&&searchOk;
+    return catOk&&readyOk&&statusOk&&searchOk;
   });
 
   const B=(x={})=>({background:"#1a1a26",color:"#f0f0f8",border:"1px solid #2a2a3d",borderRadius:8,padding:"9px 14px",fontWeight:600,fontSize:12,cursor:"pointer",...x});
@@ -487,24 +548,6 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
         <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#22c55e"}}>
           <div style={{width:7,height:7,background:"#22c55e",borderRadius:"50%",animation:"pulse 2s infinite"}}/>
           AI-мониторинг
-          {lastUpdate && (() => {
-            const days = lastUpdateTs ? Math.floor((Date.now() - lastUpdateTs) / 86400000) : 0;
-            const isStale = days >= 7;
-            return (
-              <span style={{marginLeft:6,display:"flex",alignItems:"center",gap:6}}>
-                <span style={{color:"#6b7280"}}>{lastUpdate}</span>
-                <span style={{
-                  background: isStale ? "rgba(255,77,109,0.15)" : "rgba(34,197,94,0.15)",
-                  color: isStale ? "#ff4d6d" : "#22c55e",
-                  border: "1px solid " + (isStale ? "#ff4d6d" : "#22c55e"),
-                  borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700
-                }}>
-                  {days === 0 ? "сегодня" : days === 1 ? "1 день назад" : `${days} дн. назад`}
-                  {isStale ? " ⚠️ пора обновить" : ""}
-                </span>
-              </span>
-            );
-          })()}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:dbLoaded?"#22c55e":"#fbbf24"}}/>
@@ -532,11 +575,26 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
       </div>
 
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12,alignItems:"flex-start"}}>
-        <div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <button style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:700,fontSize:12,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",opacity:loading?0.6:1}} disabled={loading} onClick={fetchTrends}>
             {loading?`⏳ ${progress}`:"⚡ Обновить тренды"}
           </button>
-          {error&&<div style={{fontSize:11,color:"#f87171",marginTop:4,maxWidth:360}}>⚠️ {error}</div>}
+          {lastUpdate && !loading && (
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:11,color:"#6b7280"}}>Обновлено:</span>
+              <span style={{fontSize:11,color:"#a78bfa",fontWeight:600}}>{lastUpdate}</span>
+              {lastUpdateTs && (() => {
+                const days = Math.floor((Date.now() - lastUpdateTs) / 86400000);
+                const isStale = days >= 7;
+                return (
+                  <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                    {days===0?"сегодня":days===1?"1 день назад":`${days} дн. назад`}{isStale?" ⚠️":""}
+                  </span>
+                );
+              })()}
+            </div>
+          )}
+          {error&&<div style={{fontSize:11,color:"#f87171"}}>⚠️ {error}</div>}
         </div>
         <button style={B()} onClick={exportCSV}>⬇ Скачать CSV</button>
         <button style={tabBtn("table")} onClick={()=>setTab("table")}>📊 Таблица</button>
@@ -546,7 +604,14 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
         {CATEGORIES.map(c=><CategoryFilterBtn key={c} cat={c} active={filter===c} onClick={()=>setFilter(c)}/>)}
       </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
+        <span style={{fontSize:11,color:"#6b7280",marginRight:2}}>📋 Заявка:</span>
+        {[{label:"Все",id:"Все"},{label:"Идея",id:"idea"},{label:"В работе у ком. отдела",id:"commercial"},{label:"В ассортименте",id:"done"},{label:"Поставщик не найден",id:"nosupplier"},{label:"Не договорились",id:"nodeal"}].map(r=>(
+          <button key={r.id} style={fBtn(requestFilter===r.id)} onClick={()=>setRequestFilter(r.id)}>{r.label}</button>
+        ))}
+      </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
+        <span style={{fontSize:11,color:"#6b7280",marginRight:2}}>🚦 Закупка:</span>
         {["Все","🟢 Готов к закупке","🟡 Ищем поставщика","🔴 Недоступно в КЗ"].map(r=>(
           <button key={r} style={fBtn(readyFilter===r)} onClick={()=>setReadyFilter(r)}>{r}</button>
         ))}
@@ -554,7 +619,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
           style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",color:"#f0f0f8",fontSize:12,width:160,outline:"none",marginLeft:"auto"}}/>
       </div>
 
-      {tab==="kanban" ? <KanbanBoard trends={trends} onMove={moveKanban}/> : (
+      {tab==="kanban" ? <KanbanBoard trends={trends} onMove={moveKanban} filter={filter}/> : (
         <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid #2a2a3d",fontWeight:700,fontSize:13}}>
             📊 Таблица трендов — {filtered.length} позиций
@@ -563,7 +628,7 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
                 <tr>
-                  {["#","Товар","Кат.","Регион","Статус","Интерес","💰 Цена ₸","ЗАКУПКА","🏪 Конкуренты","Идея для контента","🇷🇺 Россия","🇰🇿 Казахстан","📲 Соцсети","📋 Заявка","Действие"].map(h=>(
+                  {["#","Товар","Кат.","Регион","Статус","Интерес","💰 Цена ₸","ЗАКУПКА","В ассортименте у конкурентов","🇷🇺 Россия","🇰🇿 Казахстан","📲 Соцсети","🎬 Контент","📋 Заявка","⚙️ Статус"].map(h=>(
                     <th key={h} style={TH}>
                       {h==="ЗАКУПКА" ? <ProcurementTooltip/> : h}
                     </th>
@@ -590,7 +655,6 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
                       <td style={{...TD,whiteSpace:"nowrap",fontWeight:700,color:"#fbbf24"}}>{t.price_range||"—"}</td>
                       <td style={TD}><ReadyBadge value={t.procurement_ready||"🟡 Ищем поставщика"} onChange={v=>updateTrend(t.name,{procurement_ready:v})}/></td>
                       <td style={TD}><CompetitorCell competitors={t.competitors||[]} onChange={v=>updateTrend(t.name,{competitors:v})}/></td>
-                      <td style={{...TD,maxWidth:180,color:"#c4b5fd",lineHeight:1.5}}>{t.instagram_idea}</td>
                       <td style={TD}>
                         <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.russia_status]||"#9ca3af",marginBottom:3}}>{t.russia_status}</div>
                         <div style={{fontSize:11,color:"#6b7280",maxWidth:140}}>{t.russia_detail}</div>
@@ -599,26 +663,20 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
                         <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.kz_status]||"#9ca3af",marginBottom:3}}>{t.kz_status}</div>
                         <div style={{fontSize:11,color:"#6b7280",maxWidth:140}}>{t.kz_detail}</div>
                       </td>
-                      <td style={{...TD,maxWidth:170}}>
-                        {t.social1_platform&&<div style={{fontSize:11,marginBottom:4}}><span style={{color:"#7c3aed",fontWeight:600}}>[{t.social1_platform}]</span> <span style={{color:"#9ca3af"}}>{t.social1_desc}</span></div>}
-                        {t.social2_platform&&<div style={{fontSize:11}}><span style={{color:"#7c3aed",fontWeight:600}}>[{t.social2_platform}]</span> <span style={{color:"#9ca3af"}}>{t.social2_desc}</span></div>}
+                      <td style={{...TD,maxWidth:180}}>
+                        <SocialCell social1_platform={t.social1_platform} social1_desc={t.social1_desc} social2_platform={t.social2_platform} social2_desc={t.social2_desc}/>
                       </td>
                       <td style={TD}>
-                        <RequestCell
-                          requestNum={t.request_num||""}
-                          requestStatus={t.request_status||"—"}
-                          onNumChange={v=>updateTrend(t.name,{request_num:v})}
-                          onStatusChange={v=>updateTrend(t.name,{request_status:v})}
-                        />
+                        <button style={{fontSize:11,padding:"5px 10px",background:"linear-gradient(135deg,rgba(255,77,109,0.2),rgba(124,58,237,0.2))",border:"1px solid #7c3aed",color:"#c4b5fd",borderRadius:7,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}} onClick={()=>generatePost(t)}>📱 Контент</button>
                       </td>
                       <td style={TD}>
-                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <button style={{...B(),fontSize:11,padding:"4px 10px",background:"linear-gradient(135deg,rgba(255,77,109,0.2),rgba(124,58,237,0.2))",border:"1px solid #7c3aed",color:"#c4b5fd"}} onClick={()=>generatePost(t)}>📱 Контент</button>
-                          <select value={t.kanban||"idea"} onChange={e=>moveKanban(t.name,e.target.value)}
-                            style={{background:"#0a0a0f",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"3px 6px",fontSize:10,cursor:"pointer",outline:"none"}}>
-                            {KANBAN_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
-                          </select>
-                        </div>
+                        <RequestCell requestNum={t.request_num||""} onNumChange={v=>updateTrend(t.name,{request_num:v})}/>
+                      </td>
+                      <td style={TD}>
+                        <select value={t.kanban||"idea"} onChange={e=>moveKanban(t.name,e.target.value)}
+                          style={{background:"#0a0a0f",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",outline:"none",minWidth:160}}>
+                          {KANBAN_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
                       </td>
                     </tr>
                   );
@@ -629,25 +687,44 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
         </div>
       )}
 
-      {instaItem&&(
-        <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:14,marginTop:16,padding:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-            <span style={{fontWeight:700,fontSize:13}}>📱 Контент-пакет — {instaItem.name}</span>
-            <button style={B()} onClick={()=>{setInstaItem(null);setInstaPosts(null);}}>✕</button>
-          </div>
-          {instaLoading&&<div style={{textAlign:"center",padding:30,color:"#6b7280"}}>
-            <div style={{width:28,height:28,border:"3px solid #2a2a3d",borderTopColor:"#ff4d6d",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 12px"}}/>
-            Генерирую посты...
-          </div>}
-          {instaPosts&&instaPosts.map((p,i)=>(
-            <div key={i} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:10,padding:14,marginBottom:12}}>
-              <div style={{fontWeight:700,color:"#ff4d6d",marginBottom:8,fontSize:13}}>{p.variant}</div>
-              <div style={{fontSize:13,color:"#d1d5db",lineHeight:1.7,marginBottom:8}}>{p.caption}</div>
-              <div style={{fontSize:12,color:"#7c3aed"}}>{p.hashtags}</div>
-              <button style={{background:"rgba(124,58,237,0.15)",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",marginTop:8}}
-                onClick={()=>navigator.clipboard.writeText((p.caption||"")+"\n"+(p.hashtags||""))}>📋 Скопировать</button>
+      {contentModal && instaItem && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.75)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 16px",overflowY:"auto"}} onClick={e=>{if(e.target===e.currentTarget){setContentModal(false);setInstaItem(null);setInstaPosts(null);}}}>
+          <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:16,width:"100%",maxWidth:720,padding:20,position:"relative"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div>
+                <span style={{fontWeight:800,fontSize:14,color:"#f0f0f8"}}>📱 Контент-пакет</span>
+                <span style={{marginLeft:8,fontSize:12,color:"#7c3aed",fontWeight:600}}>{instaItem.name}</span>
+                <span style={{marginLeft:6,fontSize:11,color:"#6b7280"}}>{instaItem.category}</span>
+              </div>
+              <button style={{background:"#1a1a26",color:"#f0f0f8",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={()=>{setContentModal(false);setInstaItem(null);setInstaPosts(null);}}>✕</button>
             </div>
-          ))}
+            {instaLoading && (
+              <div style={{textAlign:"center",padding:40,color:"#6b7280"}}>
+                <div style={{width:28,height:28,border:"3px solid #2a2a3d",borderTopColor:"#ff4d6d",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 12px"}}/>
+                <div style={{fontSize:13}}>Генерирую контент-пакет...</div>
+                <div style={{fontSize:11,marginTop:4,color:"#3a3a4d"}}>Создаю форматы для соцсетей и офлайн промо</div>
+              </div>
+            )}
+            {instaPosts && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                {instaPosts.map((p,i)=>{
+                  const isOffline = p.variant?.includes("офлайн") || p.variant?.includes("Промо");
+                  return (
+                    <div key={i} style={{background:"#1a1a26",border:"1px solid "+(isOffline?"rgba(251,191,36,0.3)":"#2a2a3d"),borderRadius:10,padding:14,display:"flex",flexDirection:"column",gap:6}}>
+                      <div style={{fontWeight:700,color:isOffline?"#fbbf24":"#ff4d6d",fontSize:12,marginBottom:2}}>{p.variant}</div>
+                      <div style={{fontSize:12,color:"#d1d5db",lineHeight:1.65,flex:1}}>{p.caption}</div>
+                      {p.tip && <div style={{fontSize:11,color:"#7c3aed",background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.3)",borderRadius:6,padding:"4px 8px"}}>💡 {p.tip}</div>}
+                      {p.hashtags && <div style={{fontSize:11,color:"#6b7280",lineHeight:1.4}}>{p.hashtags}</div>}
+                      {(p.caption || p.hashtags) && (
+                        <button style={{background:"rgba(124,58,237,0.15)",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",marginTop:2,alignSelf:"flex-start"}}
+                          onClick={()=>navigator.clipboard.writeText((p.caption||"")+"\n"+(p.hashtags||""))}>📋 Скопировать</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
