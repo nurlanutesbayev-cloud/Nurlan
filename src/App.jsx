@@ -24,7 +24,7 @@ const sb = {
         return data;
       } catch(e) {
         console.error(`DB attempt ${attempt} error:`, e.message);
-        if (attempt < 3) await new Promise(res => setTimeout(res, 2500));
+        if (attempt < 3) await new Promise(res => setTimeout(res, 5000));
       }
     }
     return [];
@@ -388,30 +388,24 @@ export default function App() {
   };
   const moveKanban = (name, col) => updateTrend(name,{kanban:col});
 
-  // Load from Supabase on mount
+  // Load from Supabase on mount - with initial delay for cold start
   useEffect(() => {
-    sb.getAll().then(data => {
+    const load = async () => {
+      // Wait 3 seconds for PostgREST to wake up on free tier
+      await new Promise(res => setTimeout(res, 3000));
+      const data = await sb.getAll();
+      console.log("Loaded from DB:", data ? data.length : 0);
       if (data && data.length > 0) {
         setTrends(data.map(t => ({...BASE, ...t, competitors: t.competitors || []})));
         setDbLoaded(true);
+        console.log("DB connected!");
       } else {
-        // First time — load fallback and save to DB
+        console.log("DB empty or error, using fallback");
         setTrends(FALLBACK);
-        sb.upsertAll(FALLBACK).then(() => {
-          // Reload from DB to get IDs
-          sb.getAll().then(fresh => {
-            if (fresh && fresh.length > 0) {
-              setTrends(fresh.map(t => ({...BASE, ...t, competitors: t.competitors || []})));
-            }
-            setDbLoaded(true);
-          });
-        });
+        setDbLoaded(false);
       }
-    }).catch((e) => {
-      console.error("DB load error:", e);
-      setTrends(FALLBACK);
-      setDbLoaded(false);
-    });
+    };
+    load();
   }, []);
 
   const fetchTrends = async () => {
