@@ -4,30 +4,36 @@ import { useState, useEffect } from "react";
 const SUPABASE_URL = "https://acvbjpjtohtkulmbpng.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdmJqcGp0b2h0a3VsbWJicG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjg4NzgsImV4cCI6MjA5NDgwNDg3OH0.mLrrZahUIC4Eko56L-PJFfkEVE6e0iDTK_Ipuf4KKVM";
 
+const EDGE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/get-trends";
+
 const sb = {
   async getAll() {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log("Fetching via Edge Function...");
+      const r = await fetch(EDGE_URL, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+        }
+      });
+      console.log("Edge Function status:", r.status);
+      if (!r.ok) { console.error("Edge error:", await r.text()); return []; }
+      const json = await r.json();
+      console.log("Edge response:", json);
+      // Edge function returns {ok, count, data}
+      return json.data || [];
+    } catch(e) {
+      console.error("Edge fetch error:", e.message);
+      // Fallback to direct REST
       try {
-        console.log(`DB attempt ${attempt}`);
-        const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
-          headers: {
-            "apikey": SUPABASE_KEY,
-            "Authorization": `Bearer ${SUPABASE_KEY}`,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-          }
+        const r2 = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
+          headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
         });
-        console.log(`DB status:`, r.status);
-        if (!r.ok) { console.error("DB error:", await r.text()); continue; }
-        const data = await r.json();
-        console.log("DB rows:", data.length);
-        return data;
-      } catch(e) {
-        console.error(`DB attempt ${attempt} error:`, e.message);
-        if (attempt < 3) await new Promise(res => setTimeout(res, 5000));
-      }
+        if (r2.ok) return r2.json();
+      } catch(_) {}
+      return [];
     }
-    return [];
   },
   async upsertAll(trends) {
     const rows = trends.map(t => ({
@@ -388,24 +394,22 @@ export default function App() {
   };
   const moveKanban = (name, col) => updateTrend(name,{kanban:col});
 
-  // Load from Supabase on mount - with initial delay for cold start
+  // Load from Supabase via Edge Function on mount
   useEffect(() => {
-    const load = async () => {
-      // Wait 3 seconds for PostgREST to wake up on free tier
-      await new Promise(res => setTimeout(res, 3000));
-      const data = await sb.getAll();
-      console.log("Loaded from DB:", data ? data.length : 0);
+    sb.getAll().then(data => {
+      console.log("Loaded:", data ? data.length : 0);
       if (data && data.length > 0) {
         setTrends(data.map(t => ({...BASE, ...t, competitors: t.competitors || []})));
         setDbLoaded(true);
-        console.log("DB connected!");
       } else {
-        console.log("DB empty or error, using fallback");
         setTrends(FALLBACK);
         setDbLoaded(false);
       }
-    };
-    load();
+    }).catch((e) => {
+      console.error("Load error:", e);
+      setTrends(FALLBACK);
+      setDbLoaded(false);
+    });
   }, []);
 
   const fetchTrends = async () => {
