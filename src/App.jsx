@@ -219,7 +219,7 @@ async function callAI(prompt) {
     headers: {
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
-      "x-api-key": "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",
+      "x-api-key": "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",
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1800, messages: [{ role: "user", content: prompt }] }),
@@ -759,4 +759,3 @@ name, subname, category, status ("🔥 Горячий"|"✨ Новинка"|"�
       </div>
     </div>
   );
-}
