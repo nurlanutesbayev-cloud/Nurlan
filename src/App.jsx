@@ -7,50 +7,64 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const sb = {
   async getAll() {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+      }
     });
-    return r.ok ? r.json() : [];
+    if (!r.ok) { console.error("getAll failed:", r.status, await r.text()); return []; }
+    return r.json();
   },
   async upsertAll(trends) {
     const rows = trends.map(t => ({
-      name: t.name, subname: t.subname, category: t.category,
+      name: t.name, subname: t.subname || "", category: t.category,
       status: t.status, heat: t.heat, region: t.region,
-      instagram_idea: t.instagram_idea,
-      russia_status: t.russia_status, russia_detail: t.russia_detail,
-      kz_status: t.kz_status, kz_detail: t.kz_detail,
-      social1_platform: t.social1_platform, social1_desc: t.social1_desc,
-      social2_platform: t.social2_platform, social2_desc: t.social2_desc,
-      procurement_ready: t.procurement_ready, price_range: t.price_range,
+      instagram_idea: t.instagram_idea || "",
+      russia_status: t.russia_status || "", russia_detail: t.russia_detail || "",
+      kz_status: t.kz_status || "", kz_detail: t.kz_detail || "",
+      social1_platform: t.social1_platform || "", social1_desc: t.social1_desc || "",
+      social2_platform: t.social2_platform || "", social2_desc: t.social2_desc || "",
+      procurement_ready: t.procurement_ready || "🟡 Ищем поставщика",
+      price_range: t.price_range || "—",
       competitors: t.competitors || [],
       kanban: t.kanban || "idea",
       request_num: t.request_num || "",
       request_status: t.request_status || "—",
     }));
-    // Delete all and re-insert for clean sync
-    await fetch(`${SUPABASE_URL}/rest/v1/trends?id=neq.00000000-0000-0000-0000-000000000000`, {
+    // Clear table first
+    await fetch(`${SUPABASE_URL}/rest/v1/trends?id=gte.00000000-0000-0000-0000-000000000000`, {
       method: "DELETE",
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
     });
-    await fetch(`${SUPABASE_URL}/rest/v1/trends`, {
+    // Insert all
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/trends`, {
       method: "POST",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
       body: JSON.stringify(rows)
     });
+    if (!r.ok) { const e = await r.text(); console.error("upsertAll failed:", r.status, e); return null; }
+    return r.json();
   },
   async updateOne(id, patch) {
-    await fetch(`${SUPABASE_URL}/rest/v1/trends?id=eq.${id}`, {
+    if (!id) return;
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?id=eq.${id}`, {
       method: "PATCH",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
       body: JSON.stringify(patch)
     });
+    if (!r.ok) console.error("updateOne failed:", r.status, await r.text());
   },
-  async logChange(trendName, field, oldVal, newVal) {
-    await fetch(`${SUPABASE_URL}/rest/v1/change_log`, {
-      method: "POST",
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ trend_name: trendName, field_changed: field, old_value: String(oldVal||""), new_value: String(newVal||"") })
-    });
-  }
 };
 
 const CATEGORIES = ["Все","Снеки","Напитки","Молочка","Здоровое питание","Бытовая химия","Кондитерка","Готовая еда","Мороженое","Полуфабрикаты","Морепродукты","Мама и младенец","Колбасные изделия","Соусы","Овощи и фрукты","Хлебобулочные","Алкоголь","Высокобелковые","Консервация"];
