@@ -7,7 +7,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const EDGE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/get-trends";
 const EDGE_UPDATE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/smooth-task";
 const EDGE_AI_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/generate-content";
-
+ 
 const sb = {
   async getAll() {
     try {
