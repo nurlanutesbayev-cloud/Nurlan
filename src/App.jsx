@@ -520,7 +520,10 @@ export default function App() {
         let text = null;
         for (let attempt=0; attempt<2; attempt++) {
           try {
+            const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
             text = await callAI(`Ты FMCG-эксперт по Казахстану. Верни JSON массив из ${targetCat ? "10" : "5"} объектов для ${targetCat ? `категории: ${batches[i]}` : `категорий: ${batches[i]}`}.
+
+СЕГОДНЯШНЯЯ ДАТА: ${today}. Все тренды, сроки запуска, упоминания сезонов и событий рассчитывай ОТ ЭТОЙ ДАТЫ В БУДУЩЕЕ. Не используй прошедшие даты как актуальные тренды.
 
 ВАЖНО О СЕТИ АЯН: работает ТОЛЬКО в Астане, Караганде и Темиртау (НЕ Алматы). Целевая аудитория — центральный и северный Казахстан.
 
@@ -564,7 +567,8 @@ name (бренд + позиция), subname (производитель + стр
   const generatePost = async (item) => {
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
     try {
-      const text = await callAI(`Ты SMM-менеджер и маркетолог супермаркета Аян (Казахстан, города: Астана, Кар аганда, Темиртау). Товар: ${item.name} (${item.subname||""}), категория: ${item.category}.
+      const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+      const text = await callAI(`Ты SMM-менеджер и маркетолог супермаркета Аян (Казахстан, города: Астана, Караганда, Темиртау). СЕГОДНЯШНЯЯ ДАТА: ${today}. Все даты акций и сроки рассчитывай от сегодня в будущее. Товар: ${item.name} (${item.subname||""}), категория: ${item.category}.
 Верни JSON массив из 6 объектов без markdown:
 [
   {"variant":"📝 Instagram — пост в ленту","caption":"90-120 слов с эмодзи, живой и вовлекающий текст","hashtags":"15 хэштегов для Казахстана","tip":"совет по оформлению фото/визуала"},
@@ -584,7 +588,11 @@ name (бренд + позиция), subname (производитель + стр
   const generateAnalysis = async (item) => {
     setAnalysisItem(item); setAnalysisLoading(true); setAnalysisData(null); setAnalysisModal(true);
     try {
+      const today = new Date();
+      const todayStr = today.toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
       const text = await callAI(`Ты FMCG-эксперт по Казахстану. Проведи глубокий анализ позиции для байера супермаркета Аян.
+
+СЕГОДНЯШНЯЯ ДАТА: ${todayStr}. Все сроки, даты запуска, ссылки на сезоны и события рассчитывай ОТ ЭТОЙ ДАТЫ В БУДУЩЕЕ. Не используй прошедшие даты (2024, начало 2025 и т.д.) — это уже прошлое.
 
 ВАЖНО О СЕТИ АЯН:
 - Аян работает в 3 городах: Караганда, Темиртау, Астана
@@ -723,6 +731,10 @@ name (бренд + позиция), subname (производитель + стр
         <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:dbLoaded?"#22c55e":"#fbbf24"}}/>
           <span style={{color:dbLoaded?"#22c55e":"#fbbf24",fontWeight:600}}>{dbLoaded?"🗄️ БД подключена":"⚡ Локальный режим"}</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:6,padding:"4px 10px"}}>
+          <span style={{color:"#64748b"}}>📅 Сегодня:</span>
+          <span style={{color:"#0f172a",fontWeight:700}}>{new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"})}</span>
         </div>
         <button onClick={()=>{localStorage.removeItem("ayan_authed"); setAuthed(false); setPwInput("");}} style={{background:"transparent",border:"1px solid #cbd5e1",borderRadius:6,padding:"4px 10px",fontSize:11,color:"#64748b",cursor:"pointer"}}>🔓 Выйти</button>
       </div>
