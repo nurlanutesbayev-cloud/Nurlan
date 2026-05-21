@@ -460,6 +460,13 @@ export default function App() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const [analysisModal, setAnalysisModal] = useState(false);
+  const [authed, setAuthed] = useState(() => localStorage.getItem("ayan_authed") === "1");
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [catUpdates, setCatUpdates] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ayan_cat_updates") || "{}"); }
+    catch { return {}; }
+  });
 
   const updateTrend = (name, patch) => {
     setTrends(prev => prev.map(t => {
@@ -545,6 +552,11 @@ name (бренд + позиция), subname (производитель + стр
       setLastUpdateTs(now.getTime());
       localStorage.setItem("ayan_last_update", nowStr);
       localStorage.setItem("ayan_last_update_ts", String(now.getTime()));
+      if (targetCat) {
+        const updated = {...catUpdates, [targetCat]: {time: nowStr, ts: now.getTime()}};
+        setCatUpdates(updated);
+        localStorage.setItem("ayan_cat_updates", JSON.stringify(updated));
+      }
     } catch(e) { setError(e.message); }
     setLoading(false); setProgress("");
   };
@@ -575,11 +587,14 @@ name (бренд + позиция), subname (производитель + стр
       const text = await callAI(`Ты FMCG-эксперт по Казахстану. Проведи глубокий анализ позиции для байера супермаркета Аян.
 
 ВАЖНО О СЕТИ АЯН:
-- Аян работает ТОЛЬКО в 3 городах: Астана, Караганда, Темиртау
-- В Алматы Аяна НЕТ — не упоминай Алматы как канал запуска
-- Флагманы Аяна находятся в Астане и Караганде
+- Аян работает в 3 городах: Караганда, Темиртау, Астана
+- НЕТ в Алматы — никогда не упоминай Алматы
+- Реальные магазины сети (33 точки):
+  Караганда (20 точек): 45 квартал, Азат, Аян-Город, Берёзка, Восток, Огонёк, Океан, Рыскулова, Алиханова, Мечта, Степной 2, Степной 4, Сырдарья, Айгерим, Ануар, Умай, ТБЦ, Аманжолова 17, Аманжолова 35, Верный Пришахтинск
+  Темиртау (8 точек): Верный 1, Женіс, Комсомолец, Пассаж, Аян-7, Шолпан, 7мкр 1а, Нура
+  Астана (5 точек): Евромол, Жайлы, Кажимукана, Караван, Пригородный
 - Целевая аудитория: жители центрального и северного Казахстана
-- Главные конкуренты в этих городах: Magnum, Small, Galmart (Астана), региональные сети
+- Главные конкуренты: Magnum, Small, Galmart (Астана), региональные сети
 
 Товар: ${item.name} (${item.subname||""}), категория: ${item.category}, регион тренда: ${item.region}.
 
@@ -604,7 +619,7 @@ name (бренд + позиция), subname (производитель + стр
   "ayan_strategy": {
     "priority": "🔴 Срочно / 🟡 Быстро / 🟢 Планово",
     "test_quantity": "рекомендуемая тестовая партия",
-    "launch_channel": "Флагман Астана / Флагман Караганда / все ТЦ в 3 городах (Астана, Караганда, Темиртау) / онлайн. НЕ упоминай Алматы",
+    "launch_channel": "Конкретные магазины из списка выше (например: 'Аян-Город (Караганда) + Евромол (Астана) + Пассаж (Темиртау)' или 'Все 33 магазина сети' или 'Топ-5 флагманов: Аян-Город, ТБЦ, Евромол, Караван, Аян-7'). НЕ упоминай Алматы. Используй реальные названия магазинов из списка.",
     "positioning": "как подать товар"
   }
 }
@@ -641,6 +656,57 @@ name (бренд + позиция), subname (производитель + стр
   const TH={fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#64748b",padding:"10px 12px",textAlign:"left",background:"#ffffff",borderBottom:"1px solid #2a2a3d",whiteSpace:"nowrap"};
   const TD={padding:"10px 12px",fontSize:12,verticalAlign:"top",borderBottom:"1px solid #1e1e2e"};
 
+  if (!authed) {
+    const correctPw = import.meta.env.VITE_ACCESS_PASSWORD;
+    const tryLogin = () => {
+      if (pwInput === correctPw && correctPw) {
+        setAuthed(true);
+        localStorage.setItem("ayan_authed", "1");
+        setPwError("");
+      } else {
+        setPwError("Неверный пароль");
+        setPwInput("");
+      }
+    };
+    return (
+      <div style={{minHeight:"100vh",background:"linear-gradient(135deg,#f1f5f9,#e0e7ff)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"system-ui,sans-serif",padding:16}}>
+        <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,padding:36,maxWidth:420,width:"100%",boxShadow:"0 20px 60px rgba(15,23,42,0.12)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:24}}>
+            <div style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",fontWeight:800,fontSize:14,padding:"8px 16px",borderRadius:8,letterSpacing:1}}>АЯН</div>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,color:"#0f172a"}}>FMCG Trend Intelligence</div>
+              <div style={{fontSize:11,color:"#64748b"}}>v3.0 · Коммерческая тайна</div>
+            </div>
+          </div>
+          <div style={{fontSize:13,color:"#475569",marginBottom:18,lineHeight:1.5}}>
+            🔐 Доступ только для сотрудников коммерческого отдела Аян.<br/>
+            Введите пароль для входа.
+          </div>
+          <input
+            type="password"
+            value={pwInput}
+            onChange={e=>{setPwInput(e.target.value); setPwError("");}}
+            onKeyDown={e=>e.key==="Enter"&&tryLogin()}
+            placeholder="Пароль"
+            autoFocus
+            style={{width:"100%",padding:"12px 14px",fontSize:14,border:"1px solid "+(pwError?"#ff4d6d":"#cbd5e1"),borderRadius:8,outline:"none",marginBottom:12,boxSizing:"border-box"}}
+          />
+          {pwError && <div style={{fontSize:12,color:"#ff4d6d",marginBottom:12}}>⚠️ {pwError}</div>}
+          <button
+            onClick={tryLogin}
+            disabled={!pwInput}
+            style={{width:"100%",background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"12px",fontWeight:700,fontSize:13,cursor:pwInput?"pointer":"not-allowed",opacity:pwInput?1:0.5,textTransform:"uppercase",letterSpacing:"0.05em"}}
+          >
+            Войти
+          </button>
+          <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid #e2e8f0",fontSize:11,color:"#94a3b8",textAlign:"center"}}>
+            Аян Супермаркет · Караганда · Темиртау · Астана
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{minHeight:"100vh",background:"#f8fafc",color:"#0f172a",fontFamily:"system-ui,sans-serif",padding:16}}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -658,6 +724,7 @@ name (бренд + позиция), subname (производитель + стр
           <div style={{width:6,height:6,borderRadius:"50%",background:dbLoaded?"#22c55e":"#fbbf24"}}/>
           <span style={{color:dbLoaded?"#22c55e":"#fbbf24",fontWeight:600}}>{dbLoaded?"🗄️ БД подключена":"⚡ Локальный режим"}</span>
         </div>
+        <button onClick={()=>{localStorage.removeItem("ayan_authed"); setAuthed(false); setPwInput("");}} style={{background:"transparent",border:"1px solid #cbd5e1",borderRadius:6,padding:"4px 10px",fontSize:11,color:"#64748b",cursor:"pointer"}}>🔓 Выйти</button>
       </div>
 
       <div style={{fontWeight:800,fontSize:22,background:"linear-gradient(135deg,#0f172a 40%,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>Трендовые товары для Казахстана</div>
@@ -684,20 +751,31 @@ name (бренд + позиция), subname (производитель + стр
           <button style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:700,fontSize:12,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",opacity:loading?0.6:1}} disabled={loading} onClick={fetchTrends}>
             {loading?`⏳ ${progress}`:filter==="Все"?"⚡ Обновить все тренды":`⚡ Обновить: ${filter}`}
           </button>
-          {lastUpdate && !loading && (
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:11,color:"#64748b"}}>Обновлено:</span>
-              <span style={{fontSize:11,color:"#a78bfa",fontWeight:600}}>{lastUpdate}</span>
-              {lastUpdateTs && (() => {
-                const days = Math.floor((Date.now() - lastUpdateTs) / 86400000);
-                const isStale = days >= 7;
-                return (
-                  <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
-                    {days===0?"сегодня":days===1?"1 день назад":`${days} дн. назад`}{isStale?" ⚠️":""}
-                  </span>
-                );
-              })()}
-            </div>
+          {(() => {
+            const isAll = filter === "Все";
+            const catData = !isAll && catUpdates[filter];
+            const displayTime = isAll ? lastUpdate : (catData ? catData.time : null);
+            const displayTs = isAll ? lastUpdateTs : (catData ? catData.ts : null);
+            const label = isAll ? "Обновлено:" : `Обновлено (${filter}):`;
+            if (!displayTime || loading) return null;
+            return (
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:11,color:"#64748b"}}>{label}</span>
+                <span style={{fontSize:11,color:"#a78bfa",fontWeight:600}}>{displayTime}</span>
+                {displayTs && (() => {
+                  const days = Math.floor((Date.now() - displayTs) / 86400000);
+                  const isStale = days >= 7;
+                  return (
+                    <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                      {days===0?"сегодня":days===1?"1 день назад":`${days} дн. назад`}{isStale?" ⚠️":""}
+                    </span>
+                  );
+                })()}
+              </div>
+            );
+          })()}
+          {!loading && filter !== "Все" && !catUpdates[filter] && (
+            <span style={{fontSize:11,color:"#94a3b8",fontStyle:"italic"}}>Категория ещё не обновлялась</span>
           )}
           {error&&<div style={{fontSize:11,color:"#f87171"}}>⚠️ {error}</div>}
         </div>
