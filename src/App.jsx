@@ -125,7 +125,7 @@ const CAT_DESCRIPTIONS = {
 };
 
 const REQUEST_STATUSES = [
-  {value:"—",            color:"#6b7280", bg:"rgba(107,114,128,0.15)"},
+  {value:"—",            color:"#64748b", bg:"rgba(107,114,128,0.15)"},
   {value:"Создана",      color:"#60a5fa", bg:"rgba(59,130,246,0.15)"},
   {value:"На согласовании", color:"#fbbf24", bg:"rgba(251,191,36,0.15)"},
   {value:"Одобрена",     color:"#22c55e", bg:"rgba(34,197,94,0.15)"},
@@ -136,13 +136,13 @@ const REGION_MAP = {
   "Азия":       {bg:"rgba(251,146,60,0.18)", color:"#fb923c", icon:"🌏"},
   "Америка":    {bg:"rgba(59,130,246,0.18)", color:"#60a5fa", icon:"🌎"},
   "Европа":     {bg:"rgba(34,197,94,0.18)",  color:"#4ade80", icon:"🌍"},
-  "Глобальный": {bg:"rgba(156,163,175,0.18)",color:"#9ca3af", icon:"🌐"},
+  "Глобальный": {bg:"rgba(156,163,175,0.18)",color:"#64748b", icon:"🌐"},
 };
 const STATUS_MAP = {
   "🔥 Горячий":    {bg:"rgba(255,77,109,0.18)", color:"#ff4d6d"},
   "✨ Новинка":    {bg:"rgba(251,191,36,0.18)", color:"#fbbf24"},
   "📈 Растёт":     {bg:"rgba(34,197,94,0.18)",  color:"#22c55e"},
-  "✅ Стабильный": {bg:"rgba(107,114,128,0.2)", color:"#9ca3af"},
+  "✅ Стабильный": {bg:"rgba(107,114,128,0.2)", color:"#64748b"},
 };
 const MARKET_COLOR = {"Активно продаётся":"#22c55e","Появляется":"#fbbf24","Редко встречается":"#fb923c","Нет в продаже":"#ff4d6d"};
 const READY_CONFIG = {
@@ -151,7 +151,7 @@ const READY_CONFIG = {
   "🔴 Недоступно в КЗ": {color:"#ff4d6d", bg:"rgba(255,77,109,0.15)"},
 };
 const KANBAN_COLS = [
-  {id:"idea",        label:"💡 Идея",                    color:"#6b7280"},
+  {id:"idea",        label:"💡 Идея",                    color:"#64748b"},
   {id:"commercial",  label:"🏢 В работе у ком. отдела", color:"#60a5fa"},
   {id:"done",        label:"✅ В ассортименте",          color:"#22c55e"},
   {id:"nosupplier",  label:"🔍 Поставщик не найден",    color:"#fbbf24"},
@@ -244,10 +244,10 @@ function Tag({ children, bg, color }) {
 function HeatBar({ value }) {
   return (
     <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <div style={{width:70,height:4,background:"#2a2a3d",borderRadius:2}}>
+      <div style={{width:70,height:4,background:"#e2e8f0",borderRadius:2}}>
         <div style={{width:`${(value||5)*10}%`,height:"100%",borderRadius:2,background:"linear-gradient(90deg,#7c3aed,#ff4d6d)"}}/>
       </div>
-      <span style={{fontSize:11,color:"#6b7280"}}>{value}/10</span>
+      <span style={{fontSize:11,color:"#64748b"}}>{value}/10</span>
     </div>
   );
 }
@@ -279,12 +279,12 @@ function CompetitorCell({ competitors, onChange }) {
       {absent.length>0 && (adding ? (
         <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
           {absent.map(c=>(
-            <span key={c} onClick={()=>add(c)} style={{fontSize:10,padding:"2px 7px",borderRadius:4,cursor:"pointer",fontWeight:600,background:"rgba(42,42,61,0.9)",color:"#9ca3af",border:"1px solid #3a3a4d",userSelect:"none"}}>+ {c}</span>
+            <span key={c} onClick={()=>add(c)} style={{fontSize:10,padding:"2px 7px",borderRadius:4,cursor:"pointer",fontWeight:600,background:"rgba(42,42,61,0.9)",color:"#64748b",border:"1px solid #3a3a4d",userSelect:"none"}}>+ {c}</span>
           ))}
-          <span onClick={()=>setAdding(false)} style={{fontSize:10,padding:"2px 7px",borderRadius:4,cursor:"pointer",color:"#6b7280",border:"1px solid #2a2a3d"}}>✕</span>
+          <span onClick={()=>setAdding(false)} style={{fontSize:10,padding:"2px 7px",borderRadius:4,cursor:"pointer",color:"#64748b",border:"1px solid #2a2a3d"}}>✕</span>
         </div>
       ) : (
-        <span onClick={()=>setAdding(true)} style={{fontSize:10,padding:"2px 8px",borderRadius:4,cursor:"pointer",color:"#6b7280",border:"1px dashed #3a3a4d",userSelect:"none"}}>+ добавить</span>
+        <span onClick={()=>setAdding(true)} style={{fontSize:10,padding:"2px 8px",borderRadius:4,cursor:"pointer",color:"#64748b",border:"1px dashed #3a3a4d",userSelect:"none"}}>+ добавить</span>
       ))}
     </div>
   );
@@ -297,7 +297,7 @@ function ProcurementTooltip() {
       🚦 Закупка
       <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:15,height:15,background:"#7c3aed",color:"#fff",borderRadius:"50%",fontSize:9,fontWeight:800,cursor:"help"}}>?</span>
       {show && (
-        <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,zIndex:999,background:"#1a1a26",border:"1px solid #7c3aed",borderRadius:10,padding:"12px 14px",minWidth:280,boxShadow:"0 8px 32px rgba(0,0,0,0.6)",pointerEvents:"none"}}>
+        <div style={{position:"absolute",top:"calc(100% + 8px)",left:0,zIndex:999,background:"#f1f5f9",border:"1px solid #7c3aed",borderRadius:10,padding:"12px 14px",minWidth:280,boxShadow:"0 8px 32px rgba(0,0,0,0.12)",pointerEvents:"none"}}>
           <div style={{fontSize:12,fontWeight:700,color:"#a78bfa",marginBottom:10}}>🚦 Статусы закупки</div>
           {[
             {icon:"🟢",label:"Готов к закупке",desc:"Поставщик найден, можно заказывать прямо сейчас",color:"#22c55e"},
@@ -308,11 +308,11 @@ function ProcurementTooltip() {
               <span style={{fontSize:14,flexShrink:0,marginTop:1}}>{s.icon}</span>
               <div>
                 <div style={{fontSize:11,fontWeight:700,color:s.color,marginBottom:2}}>{s.label}</div>
-                <div style={{fontSize:11,color:"#9ca3af",lineHeight:1.4}}>{s.desc}</div>
+                <div style={{fontSize:11,color:"#64748b",lineHeight:1.4}}>{s.desc}</div>
               </div>
             </div>
           ))}
-          <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #2a2a3d",fontSize:11,color:"#6b7280"}}>
+          <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #2a2a3d",fontSize:11,color:"#64748b"}}>
             💡 Фильтруйте по 🟢 чтобы видеть что можно заказать сегодня
           </div>
         </div>
@@ -328,12 +328,12 @@ function CategoryFilterBtn({ cat, active, onClick }) {
   return (
     <div style={{position:"relative",display:"inline-block"}}
       onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
-      <button onClick={onClick} style={{background:active?"#7c3aed":"transparent",color:active?"#fff":"#6b7280",border:"1px solid "+(active?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"6px 12px",fontSize:11,cursor:"pointer"}}>
+      <button onClick={onClick} style={{background:active?"#7c3aed":"transparent",color:active?"#fff":"#64748b",border:"1px solid "+(active?"#7c3aed":"#e2e8f0"),borderRadius:6,padding:"6px 12px",fontSize:11,cursor:"pointer"}}>
         {icon?icon+" ":""}{cat}
       </button>
       {show && desc && (
-        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:999,background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:"10px 12px",minWidth:220,maxWidth:280,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",pointerEvents:"none",fontSize:11,color:"#9ca3af",lineHeight:1.5}}>
-          <div style={{fontWeight:700,color:"#f0f0f8",marginBottom:4}}>{icon} {cat}</div>
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:999,background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:8,padding:"10px 12px",minWidth:220,maxWidth:280,boxShadow:"0 8px 24px rgba(0,0,0,0.10)",pointerEvents:"none",fontSize:11,color:"#64748b",lineHeight:1.5}}>
+          <div style={{fontWeight:700,color:"#0f172a",marginBottom:4}}>{icon} {cat}</div>
           {desc}
         </div>
       )}
@@ -348,7 +348,7 @@ function RequestCell({ requestNum, onNumChange }) {
         value={requestNum}
         onChange={e=>onNumChange(e.target.value)}
         placeholder="№ заявки"
-        style={{background:"#0a0a0f",border:"1px solid #2a2a3d",borderRadius:6,padding:"4px 8px",color:"#f0f0f8",fontSize:11,outline:"none",width:"100%"}}
+        style={{background:"#f8fafc",border:"1px solid #2a2a3d",borderRadius:6,padding:"4px 8px",color:"#0f172a",fontSize:11,outline:"none",width:"100%"}}
       />
     </div>
   );
@@ -364,15 +364,15 @@ function SocialCell({ social1_platform, social1_desc, social2_platform, social2_
     YouTube:   {color:"#f87171",bg:"rgba(248,113,113,0.15)",border:"rgba(248,113,113,0.4)"},
     Telegram:  {color:"#60a5fa",bg:"rgba(96,165,250,0.15)", border:"rgba(96,165,250,0.4)"},
   };
-  if (!items.length) return <span style={{color:"#6b7280",fontSize:11}}>—</span>;
+  if (!items.length) return <span style={{color:"#64748b",fontSize:11}}>—</span>;
   return (
     <div style={{display:"flex",flexDirection:"column",gap:5,maxWidth:170}}>
       {items.map((it,i)=>{
-        const cfg = PLATFORM_COLORS[it.platform] || {color:"#9ca3af",bg:"rgba(156,163,175,0.15)",border:"rgba(156,163,175,0.4)"};
+        const cfg = PLATFORM_COLORS[it.platform] || {color:"#64748b",bg:"rgba(156,163,175,0.15)",border:"rgba(156,163,175,0.4)"};
         return (
           <div key={i} style={{background:cfg.bg,border:"1px solid "+cfg.border,borderRadius:7,padding:"4px 7px"}}>
             <div style={{fontSize:10,fontWeight:700,color:cfg.color,marginBottom:2}}>{it.platform}</div>
-            <div style={{fontSize:11,color:"#d1d5db",lineHeight:1.4}}>{it.desc}</div>
+            <div style={{fontSize:11,color:"#334155",lineHeight:1.4}}>{it.desc}</div>
           </div>
         );
       })}
@@ -395,11 +395,11 @@ function KanbanBoard({ trends, onMove, filter }) {
     <div>
       {filter==="Все" && (
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
-          <span style={{fontSize:11,color:"#6b7280",marginRight:4}}>Категория:</span>
-          <button onClick={()=>setCatDrill(null)} style={{background:!catDrill?"#7c3aed":"transparent",color:!catDrill?"#fff":"#6b7280",border:"1px solid "+(!catDrill?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Все</button>
+          <span style={{fontSize:11,color:"#64748b",marginRight:4}}>Категория:</span>
+          <button onClick={()=>setCatDrill(null)} style={{background:!catDrill?"#7c3aed":"transparent",color:!catDrill?"#fff":"#64748b",border:"1px solid "+(!catDrill?"#7c3aed":"#e2e8f0"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>Все</button>
           {cats.map(c=>(
             <button key={c} onClick={()=>setCatDrill(catDrill===c?null:c)}
-              style={{background:catDrill===c?"#7c3aed":"transparent",color:catDrill===c?"#fff":"#6b7280",border:"1px solid "+(catDrill===c?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>
+              style={{background:catDrill===c?"#7c3aed":"transparent",color:catDrill===c?"#fff":"#64748b",border:"1px solid "+(catDrill===c?"#7c3aed":"#e2e8f0"),borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer"}}>
               {CAT_ICONS[c]||""} {c}
             </button>
           ))}
@@ -407,21 +407,21 @@ function KanbanBoard({ trends, onMove, filter }) {
       )}
       {catDrill && (
         <div style={{marginBottom:8,fontSize:12,color:"#a78bfa",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{cursor:"pointer",color:"#6b7280",fontSize:11}} onClick={()=>setCatDrill(null)}>← Все категории</span>
+          <span style={{cursor:"pointer",color:"#64748b",fontSize:11}} onClick={()=>setCatDrill(null)}>← Все категории</span>
           <span>/ {CAT_ICONS[catDrill]||""} {catDrill}</span>
-          <span style={{color:"#6b7280"}}>({filtered.length} товаров)</span>
+          <span style={{color:"#64748b"}}>({filtered.length} товаров)</span>
         </div>
       )}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginTop:4}}>
         {KANBAN_COLS.map(col=>(
-          <div key={col.id} style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:12,padding:12,minHeight:200}}>
+          <div key={col.id} style={{background:"#ffffff",border:"1px solid #2a2a3d",borderRadius:12,padding:12,minHeight:200}}>
             <div style={{fontSize:11,fontWeight:700,color:col.color,marginBottom:10,borderBottom:"2px solid "+col.color,paddingBottom:6}}>
-              {col.label} <span style={{color:"#6b7280"}}>({byCol(col.id).length})</span>
+              {col.label} <span style={{color:"#64748b"}}>({byCol(col.id).length})</span>
             </div>
             {byCol(col.id).map((t,i)=>(
-              <div key={i} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:8,marginBottom:8}}>
-                <div style={{fontWeight:600,fontSize:11,marginBottom:2,color:"#f0f0f8"}}>{t.name}</div>
-                <div style={{fontSize:10,color:"#6b7280",marginBottom:2}}>{t.category}</div>
+              <div key={i} style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:8,padding:8,marginBottom:8}}>
+                <div style={{fontWeight:600,fontSize:11,marginBottom:2,color:"#0f172a"}}>{t.name}</div>
+                <div style={{fontSize:10,color:"#64748b",marginBottom:2}}>{t.category}</div>
                 <div style={{fontSize:10,color:"#fbbf24",marginBottom:5}}>{t.price_range||"—"}</div>
                 <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                   {KANBAN_COLS.filter(c=>c.id!==col.id).map(c=>(
@@ -456,6 +456,10 @@ export default function App() {
   const [instaPosts, setInstaPosts] = useState(null);
   const [contentModal, setContentModal] = useState(false);
   const [tab, setTab] = useState("table");
+  const [analysisItem, setAnalysisItem] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisData, setAnalysisData] = useState(null);
+  const [analysisModal, setAnalysisModal] = useState(false);
 
   const updateTrend = (name, patch) => {
     setTrends(prev => prev.map(t => {
@@ -562,6 +566,48 @@ name (бренд + позиция), subname (производитель + стр
     setInstaLoading(false);
   };
 
+  const generateAnalysis = async (item) => {
+    setAnalysisItem(item); setAnalysisLoading(true); setAnalysisData(null); setAnalysisModal(true);
+    try {
+      const text = await callAI(`Ты FMCG-эксперт по Казахстану. Проведи глубокий анализ позиции для байера супермаркета Аян.
+Товар: ${item.name} (${item.subname||""}), категория: ${item.category}, регион тренда: ${item.region}.
+
+Верни JSON объект без markdown со следующими полями:
+{
+  "trend_type": "Тип тренда: на категорию / на производителя / на позицию — с пояснением почему",
+  "trend_reason": "Почему это тренд именно сейчас: вирусные форматы, цифры (просмотры, хэштеги), культурный контекст. 2-3 предложения",
+  "viral_formats": ["3-4 конкретных формата контента которые работают для этого товара"],
+  "skus": [
+    {"name": "конкретный SKU с весом/объёмом", "pack": "упаковка", "price_rf": "цена в России в рублях", "price_kz": "прогноз розницы в КЗ в тенге"}
+  ],
+  "supply_chain": {
+    "manufacturer": "производитель и страна",
+    "distributor": "контакт дистрибьютора или путь поставки",
+    "route": "конкретный маршрут (через РФ / ОАЭ / прямой)",
+    "difficulty": "🟢 Низкая / 🟡 Средняя / 🔴 Высокая",
+    "min_order": "минимальная партия для теста"
+  },
+  "kz_competitors": [
+    {"name": "название магазина/сети", "status": "что у них есть", "gap": "где окно возможностей"}
+  ],
+  "ayan_strategy": {
+    "priority": "🔴 Срочно / 🟡 Быстро / 🟢 Планово",
+    "test_quantity": "рекомендуемая тестовая партия",
+    "launch_channel": "флагман / все ТЦ / онлайн",
+    "positioning": "как подать товар"
+  }
+}
+
+Дай 4-6 SKU и 3-4 конкурента в КЗ. Будь конкретен — реальные бренды, реальные цены, реальные магазины (SPAR, Galmart, Magnum, Sakura Market, K-Mart, Wildberries и др.).`);
+      const cleaned = text.replace(/^[^{]*/, "").replace(/[^}]*$/, "");
+      const parsed = JSON.parse(cleaned);
+      setAnalysisData(parsed);
+    } catch(e) {
+      setAnalysisData({error: "Не удалось сгенерировать анализ: " + e.message});
+    }
+    setAnalysisLoading(false);
+  };
+
   const exportCSV = () => {
     const h=["#","Товар","Бренд","Категория","Регион","Статус","Интерес","Цена","Готовность к закупке","Конкуренты","Идея для контента","RU","RU детали","KZ","KZ детали","Соцсети 1","Соцсети 2","№ Заявки","Статус заявки","Канбан"];
     const rows=trends.map((t,i)=>[i+1,t.name,t.subname,t.category,t.region,(t.status||"").replace(/[🔥✨📈✅]/g,"").trim(),t.heat,t.price_range||"—",(t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim(),(t.competitors||[]).join("; "),`"${t.instagram_idea||""}"`,t.russia_status,`"${t.russia_detail||""}"`,t.kz_status,`"${t.kz_detail||""}"`,`"[${t.social1_platform}] ${t.social1_desc||""}"`,`"[${t.social2_platform}] ${t.social2_desc||""}"`,t.request_num||"—",t.request_status||"—",t.kanban||"idea"]);
@@ -578,20 +624,20 @@ name (бренд + позиция), subname (производитель + стр
     return catOk&&readyOk&&statusOk&&searchOk;
   });
 
-  const B=(x={})=>({background:"#1a1a26",color:"#f0f0f8",border:"1px solid #2a2a3d",borderRadius:8,padding:"9px 14px",fontWeight:600,fontSize:12,cursor:"pointer",...x});
-  const tabBtn=t=>B({background:tab===t?"#7c3aed":"#1a1a26",color:tab===t?"#fff":"#f0f0f8",border:"1px solid "+(tab===t?"#7c3aed":"#2a2a3d")});
-  const fBtn=a=>({background:a?"#7c3aed":"transparent",color:a?"#fff":"#6b7280",border:"1px solid "+(a?"#7c3aed":"#2a2a3d"),borderRadius:6,padding:"6px 12px",fontSize:11,cursor:"pointer"});
-  const TH={fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#6b7280",padding:"10px 12px",textAlign:"left",background:"#12121a",borderBottom:"1px solid #2a2a3d",whiteSpace:"nowrap"};
+  const B=(x={})=>({background:"#f1f5f9",color:"#0f172a",border:"1px solid #2a2a3d",borderRadius:8,padding:"9px 14px",fontWeight:600,fontSize:12,cursor:"pointer",...x});
+  const tabBtn=t=>B({background:tab===t?"#7c3aed":"#f1f5f9",color:tab===t?"#fff":"#0f172a",border:"1px solid "+(tab===t?"#7c3aed":"#e2e8f0")});
+  const fBtn=a=>({background:a?"#7c3aed":"transparent",color:a?"#fff":"#64748b",border:"1px solid "+(a?"#7c3aed":"#e2e8f0"),borderRadius:6,padding:"6px 12px",fontSize:11,cursor:"pointer"});
+  const TH={fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:"#64748b",padding:"10px 12px",textAlign:"left",background:"#ffffff",borderBottom:"1px solid #2a2a3d",whiteSpace:"nowrap"};
   const TD={padding:"10px 12px",fontSize:12,verticalAlign:"top",borderBottom:"1px solid #1e1e2e"};
 
   return (
-    <div style={{minHeight:"100vh",background:"#0a0a0f",color:"#f0f0f8",fontFamily:"system-ui,sans-serif",padding:16}}>
+    <div style={{minHeight:"100vh",background:"#f8fafc",color:"#0f172a",fontFamily:"system-ui,sans-serif",padding:16}}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",fontWeight:800,fontSize:13,padding:"6px 14px",borderRadius:6,letterSpacing:1}}>АЯН</div>
-          <span style={{color:"#6b7280",fontSize:12}}>FMCG Trend Intelligence v3.0</span>
+          <span style={{color:"#64748b",fontSize:12}}>FMCG Trend Intelligence v3.0</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#22c55e"}}>
           <div style={{width:7,height:7,background:"#22c55e",borderRadius:"50%",animation:"pulse 2s infinite"}}/>
@@ -603,11 +649,11 @@ name (бренд + позиция), subname (производитель + стр
         </div>
       </div>
 
-      <div style={{fontWeight:800,fontSize:22,background:"linear-gradient(135deg,#f0f0f8 40%,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>Трендовые товары для Казахстана</div>
-      <div style={{color:"#6b7280",fontSize:13,marginBottom:20}}>Светофор закупки · Конкуренты · Цены · Канбан воронка</div>
+      <div style={{fontWeight:800,fontSize:22,background:"linear-gradient(135deg,#0f172a 40%,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>Трендовые товары для Казахстана</div>
+      <div style={{color:"#64748b",fontSize:13,marginBottom:20}}>Светофор закупки · Конкуренты · Цены · Канбан воронка</div>
 
       {trends.length === 0 && (
-        <div style={{textAlign:"center",padding:60,color:"#6b7280"}}>
+        <div style={{textAlign:"center",padding:60,color:"#64748b"}}>
           <div style={{width:32,height:32,border:"3px solid #2a2a3d",borderTopColor:"#7c3aed",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 16px"}}/>
           <div style={{fontSize:14}}>Загружаем данные из базы...</div>
         </div>
@@ -615,8 +661,8 @@ name (бренд + позиция), subname (производитель + стр
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
         {[["Товаров",trends.length,"#22c55e"],["🔥 Горячих",trends.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",trends.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",trends.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",trends.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",trends.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
-          <div key={l} style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:10,padding:"12px 14px"}}>
-            <div style={{fontSize:10,color:"#6b7280",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{l}</div>
+          <div key={l} style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:"12px 14px"}}>
+            <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{l}</div>
             <div style={{fontWeight:800,fontSize:20,color:c}}>{v}</div>
           </div>
         ))}
@@ -629,7 +675,7 @@ name (бренд + позиция), subname (производитель + стр
           </button>
           {lastUpdate && !loading && (
             <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:11,color:"#6b7280"}}>Обновлено:</span>
+              <span style={{fontSize:11,color:"#64748b"}}>Обновлено:</span>
               <span style={{fontSize:11,color:"#a78bfa",fontWeight:600}}>{lastUpdate}</span>
               {lastUpdateTs && (() => {
                 const days = Math.floor((Date.now() - lastUpdateTs) / 86400000);
@@ -653,22 +699,22 @@ name (бренд + позиция), subname (производитель + стр
         {CATEGORIES.map(c=><CategoryFilterBtn key={c} cat={c} active={filter===c} onClick={()=>setFilter(c)}/>)}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
-        <span style={{fontSize:11,color:"#6b7280",marginRight:2}}>📋 Заявка:</span>
+        <span style={{fontSize:11,color:"#64748b",marginRight:2}}>📋 Заявка:</span>
         {[{label:"Все",id:"Все"},{label:"Идея",id:"idea"},{label:"В работе у ком. отдела",id:"commercial"},{label:"В ассортименте",id:"done"},{label:"Поставщик не найден",id:"nosupplier"},{label:"Не договорились",id:"nodeal"}].map(r=>(
           <button key={r.id} style={fBtn(requestFilter===r.id)} onClick={()=>setRequestFilter(r.id)}>{r.label}</button>
         ))}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
-        <span style={{fontSize:11,color:"#6b7280",marginRight:2}}>🚦 Закупка:</span>
+        <span style={{fontSize:11,color:"#64748b",marginRight:2}}>🚦 Закупка:</span>
         {["Все","🟢 Готов к закупке","🟡 Ищем поставщика","🔴 Недоступно в КЗ"].map(r=>(
           <button key={r} style={fBtn(readyFilter===r)} onClick={()=>setReadyFilter(r)}>{r}</button>
         ))}
         <input placeholder="🔍 Поиск..." value={search} onChange={e=>setSearch(e.target.value)}
-          style={{background:"#1a1a26",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",color:"#f0f0f8",fontSize:12,width:160,outline:"none",marginLeft:"auto"}}/>
+          style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",color:"#0f172a",fontSize:12,width:160,outline:"none",marginLeft:"auto"}}/>
       </div>
 
       {tab==="kanban" ? <KanbanBoard trends={trends} onMove={moveKanban} filter={filter}/> : (
-        <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:14,overflow:"hidden"}}>
+        <div style={{background:"#ffffff",border:"1px solid #2a2a3d",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid #2a2a3d",fontWeight:700,fontSize:13}}>
             📊 Таблица трендов — {filtered.length} позиций
           </div>
@@ -685,16 +731,21 @@ name (бренд + позиция), subname (производитель + стр
               </thead>
               <tbody>
                 {filtered.length===0 ? (
-                  <tr><td colSpan={15} style={{...TD,textAlign:"center",color:"#6b7280",padding:40}}>Ничего не найдено</td></tr>
+                  <tr><td colSpan={15} style={{...TD,textAlign:"center",color:"#64748b",padding:40}}>Ничего не найдено</td></tr>
                 ) : filtered.map((t,i)=>{
                   const reg=REGION_MAP[t.region]||REGION_MAP["Глобальный"];
                   const st=STATUS_MAP[t.status]||STATUS_MAP["✅ Стабильный"];
                   return (
                     <tr key={i}>
-                      <td style={{...TD,color:"#6b7280"}}>{i+1}</td>
+                      <td style={{...TD,color:"#64748b"}}>{i+1}</td>
                       <td style={TD}>
-                        <div style={{fontWeight:600,marginBottom:2}}>{t.name}</div>
-                        <div style={{color:"#6b7280",fontSize:10}}>{t.subname}</div>
+                        <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontWeight:600,marginBottom:2}}>{t.name}</div>
+                            <div style={{color:"#64748b",fontSize:10}}>{t.subname}</div>
+                          </div>
+                          <button onClick={()=>generateAnalysis(t)} title="Подробный анализ" style={{background:"rgba(124,58,237,0.15)",border:"1px solid #7c3aed",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:12,color:"#a78bfa"}}>📋</button>
+                        </div>
                       </td>
                       <td style={TD}><Tag bg="rgba(124,58,237,0.2)" color="#a78bfa">{t.category}</Tag></td>
                       <td style={TD}><Tag bg={reg.bg} color={reg.color}>{reg.icon} {t.region}</Tag></td>
@@ -704,12 +755,12 @@ name (бренд + позиция), subname (производитель + стр
                       <td style={TD}><ReadyBadge value={t.procurement_ready||"🟡 Ищем поставщика"} onChange={v=>updateTrend(t.name,{procurement_ready:v})}/></td>
                       <td style={TD}><CompetitorCell competitors={t.competitors||[]} onChange={v=>updateTrend(t.name,{competitors:v})}/></td>
                       <td style={TD}>
-                        <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.russia_status]||"#9ca3af",marginBottom:3}}>{t.russia_status}</div>
-                        <div style={{fontSize:11,color:"#6b7280",maxWidth:140}}>{t.russia_detail}</div>
+                        <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.russia_status]||"#64748b",marginBottom:3}}>{t.russia_status}</div>
+                        <div style={{fontSize:11,color:"#64748b",maxWidth:140}}>{t.russia_detail}</div>
                       </td>
                       <td style={TD}>
-                        <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.kz_status]||"#9ca3af",marginBottom:3}}>{t.kz_status}</div>
-                        <div style={{fontSize:11,color:"#6b7280",maxWidth:140}}>{t.kz_detail}</div>
+                        <div style={{fontSize:11,fontWeight:600,color:MARKET_COLOR[t.kz_status]||"#64748b",marginBottom:3}}>{t.kz_status}</div>
+                        <div style={{fontSize:11,color:"#64748b",maxWidth:140}}>{t.kz_detail}</div>
                       </td>
                       <td style={{...TD,maxWidth:180}}>
                         <SocialCell social1_platform={t.social1_platform} social1_desc={t.social1_desc} social2_platform={t.social2_platform} social2_desc={t.social2_desc}/>
@@ -718,7 +769,7 @@ name (бренд + позиция), subname (производитель + стр
                         {t.supply_source ? (
                           <span style={{fontSize:12,fontWeight:600,color:"#a78bfa"}}>{t.supply_source}</span>
                         ) : (
-                          <span style={{fontSize:11,color:"#6b7280"}}>—</span>
+                          <span style={{fontSize:11,color:"#64748b"}}>—</span>
                         )}
                       </td>
                       <td style={TD}>
@@ -729,7 +780,7 @@ name (бренд + позиция), subname (производитель + стр
                       </td>
                       <td style={TD}>
                         <select value={t.kanban||"idea"} onChange={e=>moveKanban(t.name,e.target.value)}
-                          style={{background:"#0a0a0f",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",outline:"none",minWidth:160}}>
+                          style={{background:"#f8fafc",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",outline:"none",minWidth:160}}>
                           {KANBAN_COLS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
                         </select>
                       </td>
@@ -743,18 +794,18 @@ name (бренд + позиция), subname (производитель + стр
       )}
 
       {contentModal && instaItem && (
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.75)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 16px",overflowY:"auto"}} onClick={e=>{if(e.target===e.currentTarget){setContentModal(false);setInstaItem(null);setInstaPosts(null);}}}>
-          <div style={{background:"#12121a",border:"1px solid #2a2a3d",borderRadius:16,width:"100%",maxWidth:720,padding:20,position:"relative"}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.4)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 16px",overflowY:"auto"}} onClick={e=>{if(e.target===e.currentTarget){setContentModal(false);setInstaItem(null);setInstaPosts(null);}}}>
+          <div style={{background:"#ffffff",border:"1px solid #2a2a3d",borderRadius:16,width:"100%",maxWidth:720,padding:20,position:"relative"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div>
-                <span style={{fontWeight:800,fontSize:14,color:"#f0f0f8"}}>📱 Контент-пакет</span>
+                <span style={{fontWeight:800,fontSize:14,color:"#0f172a"}}>📱 Контент-пакет</span>
                 <span style={{marginLeft:8,fontSize:12,color:"#7c3aed",fontWeight:600}}>{instaItem.name}</span>
-                <span style={{marginLeft:6,fontSize:11,color:"#6b7280"}}>{instaItem.category}</span>
+                <span style={{marginLeft:6,fontSize:11,color:"#64748b"}}>{instaItem.category}</span>
               </div>
-              <button style={{background:"#1a1a26",color:"#f0f0f8",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={()=>{setContentModal(false);setInstaItem(null);setInstaPosts(null);}}>✕</button>
+              <button style={{background:"#f1f5f9",color:"#0f172a",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={()=>{setContentModal(false);setInstaItem(null);setInstaPosts(null);}}>✕</button>
             </div>
             {instaLoading && (
-              <div style={{textAlign:"center",padding:40,color:"#6b7280"}}>
+              <div style={{textAlign:"center",padding:40,color:"#64748b"}}>
                 <div style={{width:28,height:28,border:"3px solid #2a2a3d",borderTopColor:"#ff4d6d",borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto 12px"}}/>
                 <div style={{fontSize:13}}>Генерирую контент-пакет...</div>
                 <div style={{fontSize:11,marginTop:4,color:"#3a3a4d"}}>Создаю форматы для соцсетей и офлайн промо</div>
@@ -765,11 +816,11 @@ name (бренд + позиция), subname (производитель + стр
                 {instaPosts.map((p,i)=>{
                   const isOffline = p.variant?.includes("офлайн") || p.variant?.includes("Промо");
                   return (
-                    <div key={i} style={{background:"#1a1a26",border:"1px solid "+(isOffline?"rgba(251,191,36,0.3)":"#2a2a3d"),borderRadius:10,padding:14,display:"flex",flexDirection:"column",gap:6}}>
+                    <div key={i} style={{background:"#f1f5f9",border:"1px solid "+(isOffline?"rgba(251,191,36,0.3)":"#e2e8f0"),borderRadius:10,padding:14,display:"flex",flexDirection:"column",gap:6}}>
                       <div style={{fontWeight:700,color:isOffline?"#fbbf24":"#ff4d6d",fontSize:12,marginBottom:2}}>{p.variant}</div>
-                      <div style={{fontSize:12,color:"#d1d5db",lineHeight:1.65,flex:1}}>{p.caption}</div>
+                      <div style={{fontSize:12,color:"#334155",lineHeight:1.65,flex:1}}>{p.caption}</div>
                       {p.tip && <div style={{fontSize:11,color:"#7c3aed",background:"rgba(124,58,237,0.1)",border:"1px solid rgba(124,58,237,0.3)",borderRadius:6,padding:"4px 8px"}}>💡 {p.tip}</div>}
-                      {p.hashtags && <div style={{fontSize:11,color:"#6b7280",lineHeight:1.4}}>{p.hashtags}</div>}
+                      {p.hashtags && <div style={{fontSize:11,color:"#64748b",lineHeight:1.4}}>{p.hashtags}</div>}
                       {(p.caption || p.hashtags) && (
                         <button style={{background:"rgba(124,58,237,0.15)",color:"#a78bfa",border:"1px solid #7c3aed",borderRadius:6,padding:"4px 10px",fontSize:11,cursor:"pointer",marginTop:2,alignSelf:"flex-start"}}
                           onClick={()=>navigator.clipboard.writeText((p.caption||"")+"\n"+(p.hashtags||""))}>📋 Скопировать</button>
@@ -783,7 +834,128 @@ name (бренд + позиция), subname (производитель + стр
         </div>
       )}
 
-      <div style={{marginTop:24,borderTop:"1px solid #2a2a3d",paddingTop:16,fontSize:11,color:"#6b7280"}}>
+      {analysisModal && analysisItem && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.5)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 16px",overflowY:"auto"}} onClick={e=>{if(e.target===e.currentTarget){setAnalysisModal(false);setAnalysisItem(null);setAnalysisData(null);}}}>
+          <div style={{background:"#ffffff",border:"1px solid #2a2a3d",borderRadius:14,padding:24,maxWidth:900,width:"100%",maxHeight:"90vh",overflow:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,paddingBottom:14,borderBottom:"1px solid #2a2a3d"}}>
+              <div>
+                <div style={{fontSize:11,color:"#a78bfa",marginBottom:4,fontWeight:600}}>📋 КАРТОЧКА ТРЕНДА</div>
+                <div style={{fontSize:20,fontWeight:700,color:"#0f172a"}}>{analysisItem.name}</div>
+                <div style={{fontSize:13,color:"#64748b",marginTop:2}}>{analysisItem.subname} · {analysisItem.category}</div>
+              </div>
+              <button style={{background:"#f1f5f9",color:"#0f172a",border:"1px solid #2a2a3d",borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={()=>{setAnalysisModal(false);setAnalysisItem(null);setAnalysisData(null);}}>✕</button>
+            </div>
+
+            {analysisLoading && (
+              <div style={{textAlign:"center",padding:40}}>
+                <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+                <div style={{fontSize:13,color:"#64748b"}}>Генерирую глубокий анализ...</div>
+                <div style={{fontSize:11,color:"#64748b",marginTop:4}}>Бренды, SKU, поставщики, конкуренты в КЗ</div>
+              </div>
+            )}
+
+            {!analysisLoading && analysisData && analysisData.error && (
+              <div style={{background:"rgba(255,77,109,0.1)",border:"1px solid #ff4d6d",borderRadius:8,padding:16,color:"#fca5a5",fontSize:13}}>
+                {analysisData.error}
+              </div>
+            )}
+
+            {!analysisLoading && analysisData && !analysisData.error && (
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                {analysisData.trend_type && (
+                  <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#fbbf24",marginBottom:6}}>🔥 ТИП ТРЕНДА</div>
+                    <div style={{fontSize:13,color:"#334155",lineHeight:1.5}}>{analysisData.trend_type}</div>
+                  </div>
+                )}
+
+                {analysisData.trend_reason && (
+                  <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#ff4d6d",marginBottom:6}}>💡 ПОЧЕМУ ЭТО ТРЕНД</div>
+                    <div style={{fontSize:13,color:"#334155",lineHeight:1.5}}>{analysisData.trend_reason}</div>
+                    {analysisData.viral_formats && analysisData.viral_formats.length > 0 && (
+                      <div style={{marginTop:10}}>
+                        <div style={{fontSize:11,color:"#a78bfa",marginBottom:4,fontWeight:600}}>Вирусные форматы:</div>
+                        <ul style={{margin:0,paddingLeft:20,fontSize:12,color:"#64748b",lineHeight:1.6}}>
+                          {analysisData.viral_formats.map((f,i)=>(<li key={i}>{f}</li>))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {analysisData.skus && analysisData.skus.length > 0 && (
+                  <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#3a9eff",marginBottom:10}}>📦 КОНКРЕТНЫЕ SKU</div>
+                    <table style={{width:"100%",fontSize:12,borderCollapse:"collapse"}}>
+                      <thead>
+                        <tr style={{color:"#64748b",fontSize:10,textAlign:"left"}}>
+                          <th style={{padding:"4px 8px"}}>SKU</th>
+                          <th style={{padding:"4px 8px"}}>Упаковка</th>
+                          <th style={{padding:"4px 8px"}}>Цена РФ</th>
+                          <th style={{padding:"4px 8px"}}>Прогноз КЗ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analysisData.skus.map((s,i)=>(
+                          <tr key={i} style={{borderTop:"1px solid #2a2a3d",color:"#334155"}}>
+                            <td style={{padding:"6px 8px",fontWeight:600}}>{s.name}</td>
+                            <td style={{padding:"6px 8px",color:"#64748b"}}>{s.pack}</td>
+                            <td style={{padding:"6px 8px",color:"#64748b"}}>{s.price_rf}</td>
+                            <td style={{padding:"6px 8px",color:"#fbbf24",fontWeight:600}}>{s.price_kz}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {analysisData.supply_chain && (
+                  <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#22c55e",marginBottom:10}}>🚚 ЦЕПОЧКА ПОСТАВКИ</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:12}}>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Производитель</div><div style={{color:"#334155"}}>{analysisData.supply_chain.manufacturer}</div></div>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Дистрибьютор</div><div style={{color:"#334155"}}>{analysisData.supply_chain.distributor}</div></div>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Маршрут</div><div style={{color:"#334155"}}>{analysisData.supply_chain.route}</div></div>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Сложность</div><div style={{color:"#334155",fontWeight:600}}>{analysisData.supply_chain.difficulty}</div></div>
+                      {analysisData.supply_chain.min_order && (<div style={{gridColumn:"1/-1"}}><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Минимальная партия</div><div style={{color:"#fbbf24",fontWeight:600}}>{analysisData.supply_chain.min_order}</div></div>)}
+                    </div>
+                  </div>
+                )}
+
+                {analysisData.kz_competitors && analysisData.kz_competitors.length > 0 && (
+                  <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginBottom:10}}>🏪 КОНКУРЕНТЫ В КЗ</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {analysisData.kz_competitors.map((c,i)=>(
+                        <div key={i} style={{borderLeft:"2px solid #7c3aed",paddingLeft:10}}>
+                          <div style={{fontSize:13,fontWeight:600,color:"#0f172a"}}>{c.name}</div>
+                          <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Статус: {c.status}</div>
+                          <div style={{fontSize:11,color:"#fbbf24",marginTop:2}}>💡 Окно: {c.gap}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {analysisData.ayan_strategy && (
+                  <div style={{background:"linear-gradient(135deg,rgba(255,77,109,0.1),rgba(124,58,237,0.1))",border:"1px solid #7c3aed",borderRadius:10,padding:14}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#c4b5fd",marginBottom:10}}>🎯 СТРАТЕГИЯ ДЛЯ АЯНА</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:12}}>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Приоритет</div><div style={{color:"#0f172a",fontWeight:600}}>{analysisData.ayan_strategy.priority}</div></div>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Канал запуска</div><div style={{color:"#0f172a",fontWeight:600}}>{analysisData.ayan_strategy.launch_channel}</div></div>
+                      <div><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Тестовая партия</div><div style={{color:"#fbbf24",fontWeight:600}}>{analysisData.ayan_strategy.test_quantity}</div></div>
+                      <div style={{gridColumn:"1/-1"}}><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Позиционирование</div><div style={{color:"#334155"}}>{analysisData.ayan_strategy.positioning}</div></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={{marginTop:24,borderTop:"1px solid #2a2a3d",paddingTop:16,fontSize:11,color:"#64748b"}}>
         Аян Супермаркет · Астана · Караганда · Темиртау · FMCG Intelligence v3.0
       </div>
     </div>
