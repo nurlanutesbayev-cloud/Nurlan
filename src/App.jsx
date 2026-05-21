@@ -223,7 +223,7 @@ async function callAI(prompt) {
       "x-api-key": apiKey,
       "anthropic-dangerous-direct-browser-access": "true",
     },
-    body: JSON.stringify({ model: "claude-opus-4-5", max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model: "claude-opus-4-5", max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
   });
   if (!resp.ok) { const t = await resp.text().catch(() => ""); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 150)}`); }
   const data = await resp.json();
@@ -231,10 +231,38 @@ async function callAI(prompt) {
 }
 
 function parseJsonArray(text) {
+  if (!text) return null;
+  console.log("Parsing AI response, length:", text.length);
+  // Try direct full match
   const m = text.match(/\[[\s\S]*\]/);
-  if (!m) return null;
-  try { return JSON.parse(m[0]); } catch(_){}
-  try { return JSON.parse(m[0].replace(/,?\s*\{[^}]*$/,"")+"]"); } catch(_){ return null; }
+  if (!m) {
+    console.warn("No JSON array found in response:", text.slice(0,200));
+    return null;
+  }
+  try { return JSON.parse(m[0]); } catch(e){ console.warn("Direct parse failed:", e.message); }
+  // Try cleaning trailing incomplete object
+  try {
+    const cleaned = m[0].replace(/,?\s*\{[^}]*$/,"") + "]";
+    return JSON.parse(cleaned);
+  } catch(e){ console.warn("Cleaned parse failed:", e.message); }
+  // Try extracting objects one by one
+  try {
+    const objects = [];
+    const objRegex = /\{[^{}]*(\{[^{}]*\}[^{}]*)*\}/g;
+    let match;
+    while ((match = objRegex.exec(m[0])) !== null) {
+      try {
+        const obj = JSON.parse(match[0]);
+        if (obj.name) objects.push(obj);
+      } catch(_){}
+    }
+    if (objects.length > 0) {
+      console.log("Recovered", objects.length, "objects via regex");
+      return objects;
+    }
+  } catch(e){ console.warn("Object-by-object failed:", e.message); }
+  console.error("All parse attempts failed. First 500 chars:", text.slice(0,500));
+  return null;
 }
 
 function Tag({ children, bg, color }) {
@@ -530,15 +558,40 @@ export default function App() {
         for (let attempt=0; attempt<2; attempt++) {
           try {
             const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
-            text = await callAI(`Ты FMCG-эксперт по Казахстану. Верни JSON массив из ${targetCat ? "10" : "5"} объектов для ${targetCat ? `категории: ${batches[i]}` : `категорий: ${batches[i]}`}.
+            text = await callAI(`Ты FMCG-эксперт по Казахстану. ВАЖНО: верни ТОЛЬКО валидный JSON массив, без markdown, без комментариев, без текста до или после. Начни ответ с символа [ и закончи символом ].
 
-СЕГОДНЯШНЯЯ ДАТА: ${today}. Все тренды, сроки запуска, упоминания сезонов и событий рассчитывай ОТ ЭТОЙ ДАТЫ В БУДУЩЕЕ. Не используй прошедшие даты как актуальные тренды.
+Верни массив из ${targetCat ? "6" : "5"} объектов для ${targetCat ? `категории: ${batches[i]}` : `категорий: ${batches[i]}`}.
 
-ВАЖНО О СЕТИ АЯН: работает ТОЛЬКО в Астане, Караганде и Темиртау (НЕ Алматы). Целевая аудитория — центральный и северный Казахстан.
+СЕГОДНЯШНЯЯ ДАТА: ${today}. Все даты в будущем от сегодня.
 
-Фокус: конкретные бренды и производители, тренды которых ещё нет или только заходят в Казахстан.
-Только JSON без markdown. Поля:
-name (бренд + позиция), subname (производитель + страна), category, status ("🔥 Горячий"|"✨ Новинка"|"📈 Растёт"|"✅ Стабильный"), heat (число 1-10), region ("Азия"|"Америка"|"Европа"|"Глобальный"), instagram_idea, russia_status ("Активно продаётся"|"Появляется"|"Редко встречается"|"Нет в продаже"), russia_detail, kz_status ("Активно продаётся"|"Появляется"|"Редко встречается"|"Нет в продаже"), kz_detail (статус именно в Астане/Караганде/Темиртау, не Алматы), social1_platform, social1_desc, social2_platform, social2_desc, procurement_ready ("🟢 Готов к закупке"|"🟡 Ищем поставщика"|"🔴 Недоступно в КЗ"), price_range (строка вида "500–1200 ₸"), competitors_kz (строка через запятую из: Magnum Small Arbuz Рамстор Южный Корзина Оптима Норма), supply_source ("🇰🇿 Локальный KZ"|"🇷🇺 Россия прямая"|"🇪🇺 Европа через РФ"|"🇦🇪 ОАЭ/Дубай"|"🌏 Азия прямая"|"🌐 Прямой импорт").`);
+СЕТЬ АЯН: работает в Астане, Караганде, Темиртау. НЕ Алматы.
+
+Фокус: конкретные бренды и производители которых ещё нет или только заходят в Казахстан.
+
+Структура объекта (все поля строки кроме heat):
+{
+  "name": "Бренд + название позиции",
+  "subname": "Производитель + страна",
+  "category": "${targetCat || "категория из списка"}",
+  "status": "🔥 Горячий" | "✨ Новинка" | "📈 Растёт" | "✅ Стабильный",
+  "heat": число 1-10,
+  "region": "Азия" | "Америка" | "Европа" | "Глобальный",
+  "instagram_idea": "идея поста",
+  "russia_status": "Активно продаётся" | "Появляется" | "Редко встречается" | "Нет в продаже",
+  "russia_detail": "детали",
+  "kz_status": "Активно продаётся" | "Появляется" | "Редко встречается" | "Нет в продаже",
+  "kz_detail": "детали по Астане/Караганде/Темиртау",
+  "social1_platform": "TikTok",
+  "social1_desc": "описание",
+  "social2_platform": "Instagram",
+  "social2_desc": "описание",
+  "procurement_ready": "🟢 Готов к закупке" | "🟡 Ищем поставщика" | "🔴 Недоступно в КЗ",
+  "price_range": "500–1200 ₸",
+  "competitors_kz": "Magnum, Small",
+  "supply_source": "🇰🇿 Локальный KZ" | "🇷🇺 Россия прямая" | "🇪🇺 Европа через РФ" | "🇦🇪 ОАЭ/Дубай" | "🌏 Азия прямая" | "🌐 Прямой импорт"
+}
+
+Только JSON массив. Начни с [ закончи ].`);
             if (text && text.length > 10) break;
           } catch(e) { console.error("Attempt failed:", e.message); }
         }
