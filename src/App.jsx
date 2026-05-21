@@ -460,7 +460,16 @@ export default function App() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const [analysisModal, setAnalysisModal] = useState(false);
-  const [authed, setAuthed] = useState(() => localStorage.getItem("ayan_authed") === "1");
+  const [authed, setAuthed] = useState(() => {
+    const ts = Number(localStorage.getItem("ayan_authed_ts"));
+    if (!ts) return false;
+    const HOURS_8 = 8 * 60 * 60 * 1000;
+    if (Date.now() - ts > HOURS_8) {
+      localStorage.removeItem("ayan_authed_ts");
+      return false;
+    }
+    return true;
+  });
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState("");
   const [catUpdates, setCatUpdates] = useState(() => {
@@ -669,7 +678,7 @@ name (бренд + позиция), subname (производитель + стр
     const tryLogin = () => {
       if (pwInput === correctPw && correctPw) {
         setAuthed(true);
-        localStorage.setItem("ayan_authed", "1");
+        localStorage.setItem("ayan_authed_ts", String(Date.now()));
         setPwError("");
       } else {
         setPwError("Неверный пароль");
@@ -736,7 +745,7 @@ name (бренд + позиция), subname (производитель + стр
           <span style={{color:"#64748b"}}>📅 Сегодня:</span>
           <span style={{color:"#0f172a",fontWeight:700}}>{new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"})}</span>
         </div>
-        <button onClick={()=>{localStorage.removeItem("ayan_authed"); setAuthed(false); setPwInput("");}} style={{background:"transparent",border:"1px solid #cbd5e1",borderRadius:6,padding:"4px 10px",fontSize:11,color:"#64748b",cursor:"pointer"}}>🔓 Выйти</button>
+        <button onClick={()=>{localStorage.removeItem("ayan_authed_ts"); localStorage.removeItem("ayan_authed"); setAuthed(false); setPwInput("");}} style={{background:"transparent",border:"1px solid #cbd5e1",borderRadius:6,padding:"4px 10px",fontSize:11,color:"#64748b",cursor:"pointer"}}>🔓 Выйти</button>
       </div>
 
       <div style={{fontWeight:800,fontSize:22,background:"linear-gradient(135deg,#0f172a 40%,#7c3aed)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:6}}>Трендовые товары для Казахстана</div>
