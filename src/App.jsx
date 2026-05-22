@@ -898,7 +898,7 @@ export default function App() {
       )}
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
-        {[["Товаров",trends.length,"#22c55e"],["🔥 Горячих",trends.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",trends.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",trends.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",trends.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",trends.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
+        {[["Товаров",filtered.length,"#22c55e"],["🔥 Горячих",filtered.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",filtered.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",filtered.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",filtered.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",filtered.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
           <div key={l} style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:"12px 14px"}}>
             <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{l}</div>
             <div style={{fontWeight:800,fontSize:20,color:c}}>{v}</div>
