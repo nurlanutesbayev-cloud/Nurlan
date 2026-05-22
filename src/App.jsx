@@ -542,7 +542,39 @@ export default function App() {
     });
   }, []);
 
-  const fetchTrends = async () => {
+  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [catPrefs, setCatPrefs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ayan_cat_prefs") || "{}"); }
+    catch { return {}; }
+  });
+  const [rejectedBrands, setRejectedBrands] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ayan_rejected_brands") || "{}"); }
+    catch { return {}; }
+  });
+
+  const CAT_CONTEXTS = {
+    "Снеки": "Тренды 2026: протеиновые снеки (Quest, KetoDiet), азиатские чипсы (Calbee, Koikeya), Takis Fuego, попкорн премиум (SkinnyPop), веганские снеки. Слабые ниши в КЗ: азиатские снеки, функциональные снеки с пользой для здоровья. Локальные: Баян Сулу, Рахат.",
+    "Напитки": "Тренды 2026: энергетики нового поколения (Prime Hydration, Celsius, Gorilla), kombucha, адаптогенные напитки, функциональная вода, газированный чай (Chupa Chups drinks). Слабые ниши: ноотропные напитки, напитки на кокосовой воде. В КЗ слабо: Prime Hydration, Celsius.",
+    "Молочка": "Тренды 2026: растительное молоко (овсяное, миндальное — Oatly, Alpro), йогурт с высоким белком (Skyr — Arla), творог в тюбике, сыры крафтовые, кефир в новых форматах. Локальные лидеры: Фуд Мастер, Бакпак, Lactel. Слабые ниши: Skyr, растительные альтернативы.",
+    "Здоровое питание": "Тренды 2026: суперфуды (чиа, киноа, спирулина), функциональное питание, ЗОЖ-перекусы без сахара, органические продукты, детокс-продукты. Бренды: Bob's Red Mill, Navitas, Organicgirl. В КЗ практически нет органик-сегмента — огромное окно.",
+    "Бытовая химия": "Тренды 2026: экологичная химия (концентраты, таблетки), корейская косметика для дома (Pigeon, CJ Lion), капсулы для стирки (Tide Pods), ароматизированные средства премиум. Локальные: Бос, Ariel (P&G). Слабые ниши: eco-friendly концентраты, корейские бренды.",
+    "Кондитерка": "Тренды 2026: шоколад с начинками (Compartes, Vosges), азиатские конфеты (Meiji, Lotte), protein bars (Quest, Kind), Dubai Chocolate (пираль+фисташки), моти-конфеты. Слабые ниши в КЗ: Dubai Chocolate viral trend, японские конфеты. Локальные: Баян Сулу, Рахат.",
+    "Готовая еда": "Тренды 2026: азиатская готовая еда (корейские комплекты, японские onigiri), здоровые боулы, veganready-to-eat, местная кухня премиум (бешбармак наборы). Бренды: CJ Foods, Pulmuone (Корея). Слабые ниши: корейские ланч-боксы, японские онигири.",
+    "Мороженое": "Тренды 2026: Little Moons (моти, 1.5B TikTok просмотров), Halo Top (высокобелковое, 360 ккал/банка), Magnum Bon Bons (мини-шарики), My/Mochi, Movenpick, Häagen-Dazs пинты. Сезонность: пик апрель-сентябрь. Слабые ниши: премиум моти, высокобелковое. Locальные: Шин-Лайн.",
+    "Полуфабрикаты": "Тренды 2026: Bibigo (CJ Foods, Корея) — Gyoza/Mandu/Tteokbokki, Samyang заморозка, Dr. Oetker Ristorante пицца, Miraторг Black Angus sous-vide стейки и котлеты. Слабые ниши: корейские dim sum, ЗОЖ-полуфабрикаты, азиатская заморозка. Локальные: Лимак, Алель, Колибри.",
+    "Морепродукты": "Тренды 2026: Poke Kit готовый (Seafood City), seacuterie trend (Jose Gourmet, Ortiz), охлаждённый лосось порционный (Mowi, SalMar Норвегия), мидии на ракушке. #pokebowl viral. Слабые ниши: poke kits, seacuterie доски, охлаждённый лосось. Локальные: Меридиан, Vici.",
+    "Мама и младенец": "Тренды 2026: органическое детское питание (HiPP, Hipp Organic, Lebenswert), снеки для малышей (Plum Organics), пюре без сахара в мягкой упаковке, смеси из козьего молока (Kabrita). Слабые ниши: Kabrita, HiPP Organic, Plum Organics.",
+    "Колбасные изделия": "Тренды 2026: нитрат-free колбасы, крафтовые деликатесы (хамон, прошутто), растительные колбасы (Beyond Meat, Impossible), премиум снеки-нарезки. Бренды: Miraторг, Черкизово. Слабые ниши: растительные аналоги, безнитратные крафтовые.",
+    "Соусы": "Тренды 2026: корейские соусы (Gochujang, Ssamjang — CJ Beksul), трюфельные соусы, соусы для пасты премиум (Rao's Homemade), hot sauce вирусные (Valentina, Cholula). TikTok: #trufflesauce, #gochujang. Слабые ниши: Rao's, корейские соусы.",
+    "Овощи и фрукты": "Тренды 2026: экзотические фрукты (питайя, маракуйя, рамбутан), мини-овощи для снека (мини-морковь, черри), органическая зелень, грибы экзотические (шиитаке, эринги). Слабые ниши: экзотика, органик.",
+    "Хлебобулочные": "Тренды 2026: соурдоу (хлеб на закваске) крафтовый, безглютеновый хлеб, хлеб с суперфудами (чиа, льном), croissant-гибриды (крофль, краффин). Слабые ниши: соурдоу крафт, безглютеновый премиум.",
+    "Алкоголь": "Тренды 2026: готовые коктейли RTD (Aperol Spritz в банке, Hard Seltzer — White Claw), вино в банках, низкоалкогольные премиум опции, крафтовое пиво. В КЗ слабо: RTD коктейли, Hard Seltzer, вино в банках.",
+    "Высокобелковые": "Тренды 2026: протеиновые йогурты (Siggi's, Chobani), творог с высоким белком, протеиновые снеки (Quest, RXBar), готовые белковые блюда. Слабые ниши: Siggi's, RXBar, протеиновые пасты.",
+    "Консервация": "Тренды 2026: премиум консервы (Ortiz тунец, José Gourmet), веганские консервы (нут, чечевица Belazu), консервированные супы-пюре премиум, паштеты в стекле. Слабые ниши: Ortiz, José Gourmet, веганские консервы премиум."
+  };
+
+  const fetchTrends = async (customFeedback = null) => {
     setLoading(true); setError("");
     const targetCat = filter === "Все" ? null : filter;
     const batches = targetCat
@@ -558,6 +590,10 @@ export default function App() {
         for (let attempt=0; attempt<2; attempt++) {
           try {
             const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+            const catContext = targetCat && CAT_CONTEXTS[targetCat] ? `\nКОНТЕКСТ КАТЕГОРИИ «${targetCat}»: ${CAT_CONTEXTS[targetCat]}` : "";
+            const savedPrefs = targetCat && catPrefs[targetCat] ? `\nПРЕДПОЧТЕНИЯ БАЙЕРА: ${catPrefs[targetCat]}` : "";
+            const rejected = targetCat && rejectedBrands[targetCat] && rejectedBrands[targetCat].length > 0 ? `\nОТКЛОНЁНЫЕ БРЕНДЫ (не предлагать): ${rejectedBrands[targetCat].join(", ")}` : "";
+            const feedback = customFeedback ? `\nОБРАТНАЯ СВЯЗЬ БАЙЕРА (учти при генерации): ${customFeedback}` : "";
             text = await callAI(`Ты FMCG-эксперт по Казахстану. ВАЖНО: верни ТОЛЬКО валидный JSON массив, без markdown, без комментариев, без текста до или после. Начни ответ с символа [ и закончи символом ].
 
 Верни массив из ${targetCat ? "6" : "5"} объектов для ${targetCat ? `категории: ${batches[i]}` : `категорий: ${batches[i]}`}.
@@ -566,7 +602,7 @@ export default function App() {
 
 СЕТЬ АЯН: работает в Астане, Караганде, Темиртау. НЕ Алматы.
 
-Фокус: конкретные бренды и производители которых ещё нет или только заходят в Казахстан.
+Фокус: конкретные бренды и производители которых ещё нет или только заходят в Казахстан.${catContext}${savedPrefs}${rejected}${feedback}
 
 Структура объекта (все поля строки кроме heat):
 {
@@ -587,7 +623,7 @@ export default function App() {
   "social2_desc": "описание",
   "procurement_ready": "🟢 Готов к закупке" | "🟡 Ищем поставщика" | "🔴 Недоступно в КЗ",
   "price_range": "500–1200 ₸",
-  "competitors_kz": "Magnum, Small, Galmart, Fix Price, Южный, Корзина, Optima, Светофор",
+  "competitors_kz": "из списка: Magnum, Small, Galmart, Fix Price, Южный, Корзина, Optima, Светофор",
   "supply_source": "🇰🇿 Локальный KZ" | "🇷🇺 Россия прямая" | "🇪🇺 Европа через РФ" | "🇦🇪 ОАЭ/Дубай" | "🌏 Азия прямая" | "🌐 Прямой импорт"
 }
 
@@ -869,9 +905,24 @@ export default function App() {
 
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:12,alignItems:"flex-start"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-          <button style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:700,fontSize:12,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",opacity:loading?0.6:1}} disabled={loading} onClick={fetchTrends}>
+          <button style={{background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px 18px",fontWeight:700,fontSize:12,cursor:"pointer",textTransform:"uppercase",letterSpacing:"0.05em",opacity:loading?0.6:1}} disabled={loading} onClick={()=>fetchTrends()}>
             {loading?`⏳ ${progress}`:filter==="Все"?"⚡ Обновить все тренды":`⚡ Обновить: ${filter}`}
           </button>
+          {filter !== "Все" && !loading && (
+            <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}} style={{background:"#ffffff",border:"1px solid #7c3aed",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#7c3aed",display:"flex",alignItems:"center",gap:6}}>
+              💬 Уточнить запрос
+            </button>
+          )}
+          {filter !== "Все" && rejectedBrands[filter] && rejectedBrands[filter].length > 0 && (
+            <div style={{display:"flex",alignItems:"center",gap:6,background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:8,padding:"6px 12px",fontSize:11}}>
+              <span style={{color:"#92400e"}}>👎 Отклонено: {rejectedBrands[filter].join(", ")}</span>
+              <button onClick={()=>{
+                const updated = {...rejectedBrands}; delete updated[filter];
+                setRejectedBrands(updated);
+                localStorage.setItem("ayan_rejected_brands", JSON.stringify(updated));
+              }} style={{background:"none",border:"none",cursor:"pointer",color:"#9ca3af",fontSize:12,padding:0}}>✕</button>
+            </div>
+          )}
           {(() => {
             const isAll = filter === "Все";
             const catData = !isAll && catUpdates[filter];
@@ -954,7 +1005,20 @@ export default function App() {
                             <div style={{fontWeight:600,marginBottom:2}}>{t.name}</div>
                             <div style={{color:"#64748b",fontSize:10}}>{t.subname}</div>
                           </div>
-                          <button onClick={()=>generateAnalysis(t)} title="Подробный анализ" style={{background:"rgba(124,58,237,0.15)",border:"1px solid #7c3aed",borderRadius:6,padding:"3px 6px",cursor:"pointer",fontSize:12,color:"#a78bfa"}}>📋</button>
+                          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                            <button onClick={()=>generateAnalysis(t)} title="Подробный анализ" style={{background:"rgba(124,58,237,0.1)",border:"1px solid #a78bfa",borderRadius:5,padding:"2px 5px",cursor:"pointer",fontSize:11,color:"#7c3aed"}}>📋</button>
+                            <button onClick={()=>{
+                              const cat = t.category;
+                              const brand = t.name.split(" ")[0];
+                              const current = rejectedBrands[cat] || [];
+                              if (!current.includes(brand)) {
+                                const updated = {...rejectedBrands, [cat]: [...current, brand]};
+                                setRejectedBrands(updated);
+                                localStorage.setItem("ayan_rejected_brands", JSON.stringify(updated));
+                              }
+                              setTrends(prev => prev.filter(x => x.name !== t.name));
+                            }} title="Не интересно — убрать и не предлагать снова" style={{background:"rgba(255,77,109,0.1)",border:"1px solid #fca5a5",borderRadius:5,padding:"2px 5px",cursor:"pointer",fontSize:11,color:"#ff4d6d"}}>👎</button>
+                          </div>
                         </div>
                       </td>
                       <td style={TD}><Tag bg="rgba(124,58,237,0.2)" color="#a78bfa">{t.category}</Tag></td>
@@ -1165,7 +1229,65 @@ export default function App() {
         </div>
       )}
 
-      <div style={{marginTop:24,borderTop:"1px solid #2a2a3d",paddingTop:16,fontSize:11,color:"#64748b"}}>
+      {feedbackModal && filter !== "Все" && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.4)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>{if(e.target===e.currentTarget)setFeedbackModal(false);}}>
+          <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:14,padding:24,maxWidth:560,width:"100%",boxShadow:"0 20px 60px rgba(15,23,42,0.12)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div>
+                <div style={{fontSize:11,color:"#a78bfa",fontWeight:700,marginBottom:2}}>💬 УТОЧНИТЬ ЗАПРОС</div>
+                <div style={{fontSize:16,fontWeight:700,color:"#0f172a"}}>Категория: {filter}</div>
+              </div>
+              <button onClick={()=>setFeedbackModal(false)} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",color:"#64748b",fontSize:14}}>✕</button>
+            </div>
+            <div style={{fontSize:12,color:"#64748b",marginBottom:12,lineHeight:1.5}}>
+              Напишите что вас не устраивает в текущих результатах, или уточните фокус. AI учтёт это при следующей генерации и запомнит на будущее.
+            </div>
+            <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>Например: «Убери корейское, фокус на Европу», «Только новинки 2026», «Больше ЗОЖ-продуктов», «Хочу sous-vide стейки»</div>
+            <textarea
+              value={feedbackText}
+              onChange={e=>setFeedbackText(e.target.value)}
+              placeholder={`Что уточнить для категории «${filter}»?`}
+              style={{width:"100%",minHeight:100,padding:"10px 12px",fontSize:13,border:"1px solid #cbd5e1",borderRadius:8,outline:"none",resize:"vertical",boxSizing:"border-box",fontFamily:"system-ui,sans-serif",marginBottom:12}}
+            />
+            {catPrefs[filter] && (
+              <div style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#166534",marginBottom:12}}>
+                ✅ Сохранённые предпочтения: {catPrefs[filter]}
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <button onClick={()=>{
+                const updated = {...catPrefs, [filter]: feedbackText};
+                setCatPrefs(updated);
+                localStorage.setItem("ayan_cat_prefs", JSON.stringify(updated));
+                setFeedbackModal(false);
+                fetchTrends(feedbackText);
+              }} disabled={!feedbackText.trim()} style={{flex:1,background:"linear-gradient(135deg,#ff4d6d,#7c3aed)",color:"#fff",border:"none",borderRadius:8,padding:"10px",fontWeight:700,fontSize:13,cursor:feedbackText.trim()?"pointer":"not-allowed",opacity:feedbackText.trim()?1:0.5}}>
+                ⚡ Сохранить и перегенерировать
+              </button>
+              <button onClick={()=>{
+                const updated = {...catPrefs, [filter]: feedbackText};
+                setCatPrefs(updated);
+                localStorage.setItem("ayan_cat_prefs", JSON.stringify(updated));
+                setFeedbackModal(false);
+              }} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 14px",fontWeight:600,fontSize:13,cursor:"pointer",color:"#475569"}}>
+                💾 Сохранить без генерации
+              </button>
+              {catPrefs[filter] && (
+                <button onClick={()=>{
+                  const updated = {...catPrefs}; delete updated[filter];
+                  setCatPrefs(updated);
+                  localStorage.setItem("ayan_cat_prefs", JSON.stringify(updated));
+                  setFeedbackText("");
+                }} style={{background:"none",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 14px",fontSize:13,cursor:"pointer",color:"#ef4444"}}>
+                  🗑 Сбросить
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{marginTop:24,borderTop:"1px solid #e2e8f0",paddingTop:16,fontSize:11,color:"#64748b"}}>
         Аян Супермаркет · Астана · Караганда · Темиртау · FMCG Intelligence v3.0
       </div>
     </div>
