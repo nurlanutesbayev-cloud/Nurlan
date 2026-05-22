@@ -992,11 +992,71 @@ export default function App() {
     setAnalysisLoading(false);
   };
 
-  const exportCSV = () => {
-    const h=["#","Товар","Бренд","Категория","Регион","Статус","Интерес","Цена","Готовность","Конкуренты","Идея","RU","RU детали","KZ","KZ детали","Соцсети 1","Соцсети 2","№ Заявки","Канбан"];
-    const rows=trends.map((t,i)=>[i+1,t.name,t.subname,t.category,t.region,(t.status||"").replace(/[🔥✨📈✅]/g,"").trim(),t.heat,t.price_range||"—",(t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim(),(t.competitors||[]).join("; "),`"${t.instagram_idea||""}"`,t.russia_status,`"${t.russia_detail||""}"`,t.kz_status,`"${t.kz_detail||""}"`,`"[${t.social1_platform}] ${t.social1_desc||""}"`,`"[${t.social2_platform}] ${t.social2_desc||""}"`,t.request_num||"—",t.kanban||"idea"]);
-    const csv=[h,...rows].map(r=>r.join(",")).join("\n");
-    const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"})); a.download=`Аян_FMCG_${new Date().toLocaleDateString("ru-KZ").replace(/\./g,"-")}.csv`; a.click();
+  const exportExcel = async () => {
+    const XLSX = await import("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.mjs");
+    const wb = XLSX.utils.book_new();
+
+    const HEADERS = ["#","Товар","Бренд","Категория","Регион","Статус","Интерес (1-10)","Цена ₸","Закупка","Конкуренты","Россия — статус","Россия — детали","КЗ — статус","КЗ — детали","Соцсеть 1","Описание 1","Соцсеть 2","Описание 2","Поставка","Идея контента","№ Заявки","Канбан"];
+
+    const toRow = (t, i) => [
+      i + 1,
+      t.name || "",
+      t.subname || "",
+      t.category || "",
+      t.region || "",
+      (t.status || "").replace(/[🔥✨📈✅]/g, "").trim(),
+      t.heat || "",
+      t.price_range || "—",
+      (t.procurement_ready || "").replace(/[🟢🟡🔴]/g, "").trim(),
+      (t.competitors || []).join(", "),
+      t.russia_status || "",
+      t.russia_detail || "",
+      t.kz_status || "",
+      t.kz_detail || "",
+      t.social1_platform || "",
+      t.social1_desc || "",
+      t.social2_platform || "",
+      t.social2_desc || "",
+      t.supply_source || "",
+      t.instagram_idea || "",
+      t.request_num || "",
+      KANBAN_COLS.find(c => c.id === (t.kanban || "idea"))?.label.replace(/[💡🏢✅🔍🚫]/g,"").trim() || t.kanban || "",
+    ];
+
+    const styleSheet = (ws) => {
+      const headerStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "1E1B4B" } }, alignment: { horizontal: "center", wrapText: true } };
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      for (let C = range.s.c; C <= range.e.c; C++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+        if (cell) { cell.s = headerStyle; }
+      }
+      ws["!cols"] = [
+        {wch:4},{wch:28},{wch:20},{wch:16},{wch:10},{wch:12},{wch:8},{wch:14},
+        {wch:18},{wch:24},{wch:18},{wch:28},{wch:18},{wch:28},{wch:10},{wch:28},
+        {wch:10},{wch:28},{wch:16},{wch:36},{wch:12},{wch:20}
+      ];
+      ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+      return ws;
+    };
+
+    // Лист «Все тренды»
+    const allRows = [HEADERS, ...trends.map((t, i) => toRow(t, i))];
+    const wsAll = styleSheet(XLSX.utils.aoa_to_sheet(allRows));
+    XLSX.utils.book_append_sheet(wb, wsAll, "Все тренды");
+
+    // Листы по категориям
+    const cats = [...new Set(trends.map(t => t.category).filter(Boolean))].sort();
+    cats.forEach(cat => {
+      const catTrends = trends.filter(t => t.category === cat);
+      if (catTrends.length === 0) return;
+      const rows = [HEADERS, ...catTrends.map((t, i) => toRow(t, i))];
+      const ws = styleSheet(XLSX.utils.aoa_to_sheet(rows));
+      const sheetName = cat.slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    const date = new Date().toLocaleDateString("ru-KZ").replace(/\./g, "-");
+    XLSX.writeFile(wb, `Аян_FMCG_${date}.xlsx`);
   };
 
   const filtered = trends.filter(t=>{
@@ -1158,7 +1218,7 @@ export default function App() {
           })()}
           {error&&<div style={{fontSize:11,color:"#f87171"}}>⚠️ {error}</div>}
         </div>
-        <button style={B()} onClick={exportCSV}>⬇ CSV</button>
+        <button style={B()} onClick={exportExcel}>⬇ Excel</button>
         <button style={tabBtn("table")} onClick={()=>setTab("table")}>📊 Таблица</button>
         <button style={tabBtn("kanban")} onClick={()=>setTab("kanban")}>📋 Канбан</button>
       </div>
