@@ -218,6 +218,69 @@ async function callAI(prompt) {
   return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
 }
 
+// Вызов AI с веб-поиском для верификации конкурентов
+async function callAISearch(prompt) {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_KEY;
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01",
+      "x-api-key": apiKey,
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4000,
+      tools: [{ type: "web_search_20250305", name: "web_search" }],
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
+  return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
+}
+
+// Верификация конкурентов через реальный поиск по сайтам
+async function verifyCompetitors(items) {
+  if (!items || items.length === 0) return items;
+  try {
+    const productList = items.map((t, i) => `${i + 1}. ${t.name} (${t.subname || ""})`).join("\n");
+    const text = await callAISearch(`Ты верификатор данных для казахстанского ретейлера.
+
+Для каждого товара из списка найди через поиск — реально ли он продаётся на сайтах конкурентов.
+Ищи через: site:arbuz.kz "бренд", site:korzinavdom.kz "бренд", site:fix-price.kz "бренд", site:kaspi.kz "бренд" Magnum.
+
+Товары:
+${productList}
+
+ПРАВИЛО: включай конкурента ТОЛЬКО если реально нашёл страницу с этим товаром или брендом на его сайте. Если не нашёл — не включай. Лучше пустой список чем ложь.
+
+Конкуренты для проверки: Arbuz.kz, Корзина, Fix Price, Magnum
+
+Верни ТОЛЬКО JSON массив без markdown, ровно ${items.length} объектов в том же порядке:
+[{"name":"точное название товара","competitors":["Arbuz.kz"]}]`);
+
+    const verified = parseJsonArray(text);
+    if (!verified || verified.length === 0) return items;
+
+    return items.map((item, i) => {
+      const v = verified.find(r =>
+        r.name === item.name ||
+        item.name.toLowerCase().includes((r.name || "").toLowerCase().split(" ")[0]) ||
+        (r.name || "").toLowerCase().includes(item.name.toLowerCase().split(" ")[0])
+      ) || verified[i];
+      if (v && Array.isArray(v.competitors)) {
+        return { ...item, competitors: v.competitors };
+      }
+      return { ...item, competitors: [] };
+    });
+  } catch(e) {
+    console.error("verifyCompetitors failed:", e.message);
+    return items.map(t => ({ ...t, competitors: [] }));
+  }
+}
+
 function parseJsonArray(text) {
   if (!text) return null;
   const m = text.match(/\[[\s\S]*\]/);
@@ -805,7 +868,7 @@ export default function App() {
   "social2_desc": "описание",
   "procurement_ready": "🟢 Готов к закупке" | "🟡 Ищем поставщика" | "🔴 Недоступно в КЗ",
   "price_range": "500–1200 ₸",
-  "competitors_kz": "ВАЖНО: заполняй ТОЛЬКО если kz_status = 'Активно продаётся' или 'Появляется'. Если kz_status = 'Редко встречается' или 'Нет в продаже' — оставь пустой строкой. Конкуренты из списка: Magnum, Small, Galmart, Fix Price, Южный, Корзина, Optima, Светофор",
+  "competitors_kz": "оставь пустую строку — конкуренты проверяются отдельно через поиск",
   "supply_source": "🇰🇿 Локальный KZ" | "🇷🇺 Россия прямая" | "🇪🇺 Европа через РФ" | "🇦🇪 ОАЭ/Дубай" | "🌏 Азия прямая" | "🌐 Прямой импорт"
 }
 
@@ -814,7 +877,12 @@ export default function App() {
           } catch(e) { console.error("Attempt failed:", e.message); }
         }
         const parsed = parseJsonArray(text);
-        if (parsed && parsed.length > 0) all.push(...parsed.map(t=>({...BASE,...t,supply_source:t.supply_source||"",competitors:t.competitors_kz?t.competitors_kz.split(",").map(s=>s.trim()).filter(Boolean):[],kanban:"idea"})));
+        if (parsed && parsed.length > 0) {
+          const batchItems = parsed.map(t => ({...BASE,...t,supply_source:t.supply_source||"",competitors:[],kanban:"idea"}));
+          setProgress(`🔍 Проверяю конкурентов для батча ${i+1}...`);
+          const verifiedItems = await verifyCompetitors(batchItems);
+          all.push(...verifiedItems);
+        }
       }
       if (all.length===0) throw new Error("AI вернул пустой ответ");
 
