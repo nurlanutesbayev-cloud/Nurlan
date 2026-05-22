@@ -940,7 +940,7 @@ export default function App() {
 
             const days = displayTs ? Math.floor((Date.now() - displayTs) / 86400000) : null;
             const isStale = days !== null && days >= 7;
-            const dayLabel = days === null ? "" : days === 0 ? "сегодня" : days === 1 ? "вчера" : `${days} дн. назад`;
+            const dayLabel = days === null ? "" : days === 0 ? "" : days === 1 ? "вчера" : `${days} дн. назад`;
 
             return (
               <div style={{position:"relative",display:"inline-flex",alignItems:"center",gap:6}}
@@ -949,7 +949,7 @@ export default function App() {
               >
                 <span style={{fontSize:11,color:"#64748b"}}>{label}</span>
                 <span style={{fontSize:11,color:"#a78bfa",fontWeight:600,borderBottom:"1px dashed #a78bfa",cursor:"help"}}>{displayTime}</span>
-                {days !== null && (
+                {(dayLabel || isStale) && days !== null && (
                   <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
                     {dayLabel}{isStale?" ⚠️":""}
                   </span>
@@ -963,15 +963,17 @@ export default function App() {
                       <div style={{display:"flex",flexDirection:"column",gap:4}}>
                         {allUpdates.map(u => {
                           const d = Math.floor((Date.now() - u.ts) / 86400000);
-                          const dl = d === 0 ? "сегодня" : d === 1 ? "вчера" : `${d} дн. назад`;
+                          const dl = d === 0 ? "" : d === 1 ? "вчера" : `${d} дн. назад`;
                           const stale = d >= 7;
                           return (
                             <div key={u.cat} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #1e293b"}}>
                               <span style={{fontSize:12,fontWeight:600,color:"#f0f0f8",minWidth:130}}>{u.cat}</span>
                               <span style={{fontSize:10,color:"#64748b",flex:1}}>{u.time}</span>
+                              {(dl || stale) && (
                               <span style={{fontSize:10,fontWeight:700,color:stale?"#ff4d6d":"#22c55e",background:stale?"rgba(255,77,109,0.1)":"rgba(34,197,94,0.1)",borderRadius:4,padding:"2px 7px",whiteSpace:"nowrap"}}>
                                 {dl}{stale?" ⚠️":""}
                               </span>
+                              )}
                             </div>
                           );
                         })}
@@ -997,12 +999,6 @@ export default function App() {
         {CATEGORIES.map(c=><CategoryFilterBtn key={c} cat={c} active={filter===c} onClick={()=>setFilter(c)}/>)}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
-        <span style={{fontSize:11,color:"#64748b",marginRight:2}}>📋 Заявка:</span>
-        {[{label:"Все",id:"Все"},{label:"Идея",id:"idea"},{label:"В работе у ком. отдела",id:"commercial"},{label:"В ассортименте",id:"done"},{label:"Поставщик не найден",id:"nosupplier"},{label:"Не договорились",id:"nodeal"}].map(r=>(
-          <button key={r.id} style={fBtn(requestFilter===r.id)} onClick={()=>setRequestFilter(r.id)}>{r.label}</button>
-        ))}
-      </div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
         <span style={{fontSize:11,color:"#64748b",marginRight:2}}>🌍 Регион:</span>
         {[
           {label:"Все", id:"Все"},
@@ -1012,6 +1008,12 @@ export default function App() {
           {label:"🌐 Глобальный", id:"Глобальный"},
         ].map(r=>(
           <button key={r.id} style={fBtn(regionFilter===r.id)} onClick={()=>setRegionFilter(r.id)}>{r.label}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
+        <span style={{fontSize:11,color:"#64748b",marginRight:2}}>📋 Заявка:</span>
+        {[{label:"Все",id:"Все"},{label:"Идея",id:"idea"},{label:"В работе у ком. отдела",id:"commercial"},{label:"В ассортименте",id:"done"},{label:"Поставщик не найден",id:"nosupplier"},{label:"Не договорились",id:"nodeal"}].map(r=>(
+          <button key={r.id} style={fBtn(requestFilter===r.id)} onClick={()=>setRequestFilter(r.id)}>{r.label}</button>
         ))}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
