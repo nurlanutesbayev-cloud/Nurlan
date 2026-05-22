@@ -476,6 +476,7 @@ export default function App() {
   const [filter, setFilter] = useState("Все");
   const [readyFilter, setReadyFilter] = useState("Все");
   const [requestFilter, setRequestFilter] = useState("Все");
+  const [regionFilter, setRegionFilter] = useState("Все");
   const [search, setSearch] = useState("");
   const [lastUpdate, setLastUpdate] = useState(() => localStorage.getItem("ayan_last_update") || "");
   const [lastUpdateTs, setLastUpdateTs] = useState(() => Number(localStorage.getItem("ayan_last_update_ts")) || null);
@@ -798,9 +799,10 @@ export default function App() {
     const catOk=filter==="Все"||t.category===filter;
     const readyOk=readyFilter==="Все"||(t.procurement_ready||"")===readyFilter;
     const statusOk=requestFilter==="Все"||(t.kanban||"idea")===requestFilter;
+    const regionOk=regionFilter==="Все"||(t.region||"")=== regionFilter;
     const q=search.toLowerCase();
     const searchOk=!q||(t.name||"").toLowerCase().includes(q)||(t.category||"").toLowerCase().includes(q);
-    return catOk&&readyOk&&statusOk&&searchOk;
+    return catOk&&readyOk&&statusOk&&regionOk&&searchOk;
   });
 
   const B=(x={})=>({background:"#f1f5f9",color:"#0f172a",border:"1px solid #2a2a3d",borderRadius:8,padding:"9px 14px",fontWeight:600,fontSize:12,cursor:"pointer",...x});
@@ -963,6 +965,18 @@ export default function App() {
         <span style={{fontSize:11,color:"#64748b",marginRight:2}}>📋 Заявка:</span>
         {[{label:"Все",id:"Все"},{label:"Идея",id:"idea"},{label:"В работе у ком. отдела",id:"commercial"},{label:"В ассортименте",id:"done"},{label:"Поставщик не найден",id:"nosupplier"},{label:"Не договорились",id:"nodeal"}].map(r=>(
           <button key={r.id} style={fBtn(requestFilter===r.id)} onClick={()=>setRequestFilter(r.id)}>{r.label}</button>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6,alignItems:"center"}}>
+        <span style={{fontSize:11,color:"#64748b",marginRight:2}}>🌍 Регион:</span>
+        {[
+          {label:"Все", id:"Все"},
+          {label:"🌏 Азия", id:"Азия"},
+          {label:"🌎 Америка", id:"Америка"},
+          {label:"🌍 Европа", id:"Европа"},
+          {label:"🌐 Глобальный", id:"Глобальный"},
+        ].map(r=>(
+          <button key={r.id} style={fBtn(regionFilter===r.id)} onClick={()=>setRegionFilter(r.id)}>{r.label}</button>
         ))}
       </div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
