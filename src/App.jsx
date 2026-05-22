@@ -932,19 +932,57 @@ export default function App() {
             const displayTs = isAll ? lastUpdateTs : (catData ? catData.ts : null);
             const label = isAll ? "Обновлено:" : `Обновлено (${filter}):`;
             if (!displayTime || loading) return null;
+
+            // Build tooltip content — all category updates sorted by date
+            const allUpdates = Object.entries(catUpdates)
+              .map(([cat, v]) => ({cat, time: v.time, ts: v.ts}))
+              .sort((a, b) => b.ts - a.ts);
+
+            const days = displayTs ? Math.floor((Date.now() - displayTs) / 86400000) : null;
+            const isStale = days !== null && days >= 7;
+            const dayLabel = days === null ? "" : days === 0 ? "сегодня" : days === 1 ? "1 день назад" : `${days} дн. назад`;
+
             return (
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{position:"relative",display:"inline-flex",alignItems:"center",gap:6}} className="update-tooltip-wrap">
                 <span style={{fontSize:11,color:"#64748b"}}>{label}</span>
-                <span style={{fontSize:11,color:"#a78bfa",fontWeight:600}}>{displayTime}</span>
-                {displayTs && (() => {
-                  const days = Math.floor((Date.now() - displayTs) / 86400000);
-                  const isStale = days >= 7;
-                  return (
-                    <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
-                      {days===0?"сегодня":days===1?"1 день назад":`${days} дн. назад`}{isStale?" ⚠️":""}
-                    </span>
-                  );
-                })()}
+                <span
+                  style={{fontSize:11,color:"#a78bfa",fontWeight:600,borderBottom:"1px dashed #a78bfa",cursor:"help"}}
+                  onMouseEnter={e=>{const t=e.currentTarget.nextSibling;if(t)t.style.display="block";}}
+                  onMouseLeave={e=>{const t=e.currentTarget.nextSibling;if(t)t.style.display="none";}}
+                >{displayTime}</span>
+                {days !== null && (
+                  <span style={{background:isStale?"rgba(255,77,109,0.15)":"rgba(34,197,94,0.12)",color:isStale?"#ff4d6d":"#22c55e",border:"1px solid "+(isStale?"#ff4d6d":"#22c55e"),borderRadius:5,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                    {dayLabel}{isStale?" ⚠️":""}
+                  </span>
+                )}
+                {/* Tooltip */}
+                <div style={{display:"none",position:"absolute",top:"calc(100% + 8px)",left:0,zIndex:999,background:"#0f172a",border:"1px solid #334155",borderRadius:10,padding:"12px 14px",minWidth:300,boxShadow:"0 8px 24px rgba(0,0,0,0.2)",pointerEvents:"none"}}
+                  onMouseEnter={e=>{e.currentTarget.style.display="block";}}
+                  onMouseLeave={e=>{e.currentTarget.style.display="none";}}
+                >
+                  <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",marginBottom:8,letterSpacing:"0.08em"}}>📅 ИСТОРИЯ ОБНОВЛЕНИЙ</div>
+                  {allUpdates.length === 0 ? (
+                    <div style={{fontSize:11,color:"#64748b",fontStyle:"italic"}}>Нет данных</div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {allUpdates.map(u => {
+                        const d = Math.floor((Date.now() - u.ts) / 86400000);
+                        const dl = d === 0 ? "сегодня" : d === 1 ? "вчера" : `${d} дн. назад`;
+                        const stale = d >= 7;
+                        return (
+                          <div key={u.cat} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom:"1px solid #1e293b"}}>
+                            <span style={{fontSize:11,fontWeight:600,color:"#f0f0f8",minWidth:120}}>{u.cat}</span>
+                            <span style={{fontSize:10,color:"#64748b",flex:1}}>{u.time}</span>
+                            <span style={{fontSize:10,fontWeight:700,color:stale?"#ff4d6d":"#22c55e",background:stale?"rgba(255,77,109,0.1)":"rgba(34,197,94,0.1)",borderRadius:4,padding:"1px 6px"}}>
+                              {dl}{stale?" ⚠️":""}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div style={{marginTop:8,fontSize:10,color:"#475569",fontStyle:"italic"}}>Категории без обновлений не отображаются</div>
+                </div>
               </div>
             );
           })()}
