@@ -33,6 +33,7 @@ const sb = {
       name: t.name, subname: t.subname || "", category: t.category,
       status: t.status, heat: t.heat, region: t.region,
       product_type: t.product_type || "",
+      trend_reason: t.trend_reason || "",
       instagram_idea: t.instagram_idea || "",
       russia_status: t.russia_status || "", russia_detail: t.russia_detail || "",
       kz_status: t.kz_status || "", kz_detail: t.kz_detail || "",
@@ -194,7 +195,7 @@ const KANBAN_COLS = [
   {id:"nosupplier",  label:"🔍 Поставщик не найден",    color:"#fbbf24"},
   {id:"nodeal",      label:"🚫 Не договорились",        color:"#ff4d6d"},
 ];
-const BASE = {product_type:"", procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
+const BASE = {product_type:"", trend_reason:"", procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
 
 const FALLBACK = [
   {...BASE, name:"Корейская лапша Buldak", subname:"Samyang", category:"Готовая еда", status:"🔥 Горячий", heat:10, region:"Азия", instagram_idea:"Reaction-видео с самой острой лапшей — viral-контент!", russia_status:"Активно продаётся", russia_detail:"Wildberries, Ozon, азиатские маркеты", kz_status:"Активно продаётся", kz_detail:"Kaspi, Magnum, Small, азиатские маркеты Алматы", social1_platform:"TikTok", social1_desc:"#buldakchallenge — 2 млрд просмотров", social2_platform:"Instagram", social2_desc:"Reaction-видео казахстанских блогеров", procurement_ready:"🟢 Готов к закупке", price_range:"800–1 200 ₸", competitors:["Magnum","Small"]},
@@ -857,6 +858,7 @@ export default function App() {
   "name": "Бренд + название позиции",
   "product_type": "Тип продукта на русском языке, 2-4 слова. ТОЛЬКО РУССКИЙ. Примеры: Исландский йогурт скир, Протеиновый батончик шоколад, Корейские рисовые клёцки, Влажные салфетки для новорождённых, Замороженная пицца премиум, Охлаждённый лосось стейк, Энергетический напиток, Чипсы из нори, Эко-подгузники, Веганская колбаса",
   "subname": "Производитель + страна",
+  "trend_reason": "2-3 предложения на русском — ПОЧЕМУ это тренд именно сейчас. Конкретные факты: цифры просмотров, рост продаж, культурный контекст, почему актуально для Казахстана. Для КМ а не для соцсетей.",
   "category": "${targetCat || "категория из списка"}",
   "status": "🔥 Горячий" | "✨ Новинка" | "📈 Растёт" | "✅ Стабильный",
   "heat": число 1-10,
@@ -882,7 +884,7 @@ export default function App() {
         }
         const parsed = parseJsonArray(text);
         if (parsed && parsed.length > 0) {
-          const batchItems = parsed.map(t => ({...BASE,...t,supply_source:t.supply_source||"",competitors:[],kanban:"idea"}));
+          const batchItems = parsed.map(t => ({...BASE,...t,product_type:t.product_type||"",trend_reason:t.trend_reason||"",supply_source:t.supply_source||"",competitors:[],kanban:"idea"}));
           setProgress(`🔍 Проверяю конкурентов для батча ${i+1}...`);
           const verifiedItems = await verifyCompetitors(batchItems);
           all.push(...verifiedItems);
@@ -1391,7 +1393,7 @@ ${list}
         idx+1,
         "", // колонка Товар — заполним richText ниже
         t.category||"—",
-        t.instagram_idea || t.social1_desc || "—",
+        t.trend_reason || t.instagram_idea || "—",
         t.price_range||"—",
         (t.competitors||[]).join(", ") || "—",
         t.russia_status||"—",
