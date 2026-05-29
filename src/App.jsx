@@ -1217,14 +1217,14 @@ export default function App() {
 
     // KPI-блок
     const r5 = wsR.addRow(["", "📦 Всего позиций", "", "🔥 Горячих", "", "🟢 Готовы к закупке", ""]);
-    wsR.mergeCells(5,2,5,3); wsR.mergeCells(5,4,5,5); wsR.mergeCells(5,6,5,7);
+    wsR.mergeCells(r5.number,2,r5.number,3); wsR.mergeCells(r5.number,4,r5.number,5); wsR.mergeCells(r5.number,6,r5.number,7);
     r5.height = 20;
     ["B","D","F"].forEach(col => {
       r5.getCell(col).style = { font:{name:"Calibri",size:10,bold:true,color:{argb:"FF64748B"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:LGRAY}}, alignment:{vertical:"middle",horizontal:"center"} };
     });
 
     const r6 = wsR.addRow(["", catData.length, "", hot.length, "", readyNow.length, ""]);
-    wsR.mergeCells(6,2,6,3); wsR.mergeCells(6,4,6,5); wsR.mergeCells(6,6,6,7);
+    wsR.mergeCells(r6.number,2,r6.number,3); wsR.mergeCells(r6.number,4,r6.number,5); wsR.mergeCells(r6.number,6,r6.number,7);
     r6.height = 36;
     r6.getCell("B").style = { font:{name:"Calibri",size:28,bold:true,color:{argb:"FF7C3AED"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:LGRAY}}, alignment:{vertical:"middle",horizontal:"center"} };
     r6.getCell("D").style = { font:{name:"Calibri",size:28,bold:true,color:{argb:"FFFF4D6D"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF0F4"}}, alignment:{vertical:"middle",horizontal:"center"} };
@@ -1234,11 +1234,11 @@ export default function App() {
 
     // Заголовок ТОП-3
     const r8 = wsR.addRow(["", "⭐ ТОП-3 ПОЗИЦИИ ДЛЯ ПЕРВООЧЕРЁДНОГО ВВОДА", "", "", "", "", ""]);
-    wsR.mergeCells(8,2,8,NC); r8.height = 28;
+    wsR.mergeCells(r8.number,2,r8.number,NC); r8.height = 28;
     r8.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
 
     // Шапка ТОП-3
-    const r9 = wsR.addRow(["", "Товар", "Почему сейчас", "Цена ₸", "Готовность", "Рекомендация", "Приоритет"]);
+    const r9 = wsR.addRow(["", "Товар", "Почему это тренд", "Цена ₸", "Готовность", "Рекомендация байеру", "Приоритет"]);
     r9.height = 24;
     ["B","C","D","E","F","G"].forEach(col => {
       r9.getCell(col).style = { font:{name:"Calibri",size:10,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FF5B21B6"}}, alignment:{vertical:"middle",horizontal:"center",wrapText:true}, border:{bottom:{style:"medium",color:{argb:PURPLE}}} };
@@ -1249,9 +1249,14 @@ export default function App() {
     top3.forEach((t, i) => {
       const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
       const readyClean  = (t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim();
-      const why = t.kz_detail || t.instagram_idea || "—";
+      const why = t.instagram_idea || t.social1_desc || "—";
       const rowBg = i%2===0 ? WHITE : LGRAY;
-      const rr = wsR.addRow(["", `${t.name}\n${t.subname||""}`, why, t.price_range||"—", readyClean, `Завести на тестовый торец — ${statusClean} тренд`, PRIORITY[i]]);
+      const rec = t.procurement_ready === "🟢 Готов к закупке"
+        ? `Тест-запуск немедленно — поставщик готов. Старт с форматов 3, приоритет ${t.region}`
+        : t.procurement_ready === "🟡 Ищем поставщика"
+        ? `Найти поставщика → торец формат 3. Регион: ${t.region}. Интерес: ${t.heat}/10`
+        : `Мониторинг — пока недоступно в КЗ. Отслеживать появление поставщика`;
+      const rr = wsR.addRow(["", `${t.name}\n${t.subname||""}`, why, t.price_range||"—", readyClean, rec, PRIORITY[i]]);
       rr.height = 44;
       ["B","C","D","E","F","G"].forEach(col => {
         rr.getCell(col).style = { font:{name:"Calibri",size:10}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:rowBg}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}}} };
@@ -1349,7 +1354,7 @@ export default function App() {
         idx+1,
         t.name||"",
         t.subname||"",
-        t.kz_detail || t.instagram_idea || "—",
+        t.instagram_idea || t.social1_desc || "—",
         t.category||"—",
         t.price_range||"—",
         readyClean,
