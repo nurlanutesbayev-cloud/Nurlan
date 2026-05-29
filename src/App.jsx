@@ -1267,9 +1267,7 @@ export default function App() {
     const wsP = wb.addWorksheet("📦 Позиции", { views:[{state:"frozen",xSplit:0,ySplit:4}] });
     const PCOLS = [
       {header:"#",           width:4},
-      {header:"Товар",       width:26},
-      {header:"Тип продукта",width:22},
-      {header:"Бренд",       width:20},
+      {header:"Товар / Тип продукта / Бренд", width:36},
       {header:"Категория",   width:16},
       {header:"Почему тренд",width:38},
       {header:"Цена ₸",     width:14},
@@ -1320,11 +1318,10 @@ export default function App() {
       const rowBg = idx%2===0 ? WHITE : LGRAY;
       const isTop = idx < 3;
 
+      const productCell = [t.name||"", t.product_type ? t.product_type : "", t.subname||""].filter(Boolean).join("\n");
       const dr = wsP.addRow([
         idx+1,
-        t.name||"",
-        t.product_type||"—",
-        t.subname||"",
+        productCell,
         t.category||"—",
         t.instagram_idea || t.social1_desc || "—",
         t.price_range||"—",
@@ -1345,18 +1342,28 @@ export default function App() {
         };
       });
 
-      // Цветной статус на названии товара
+      // Цветной статус — используется в richText выше
       const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
-      if (sc) { const c=dr.getCell(2); c.style={...c.style,font:{...c.style.font,color:{argb:sc[1]}}}; }
 
-      // Тип продукта — фиолетовый курсив
-      const tc = dr.getCell(3);
-      tc.style = {...tc.style, font:{name:"Calibri",size:10,italic:true,color:{argb:"FF7C3AED"}}};
+      // Товар многострочный: name / тип / бренд
+      const nameCell = dr.getCell(2);
+      // Применяем rich text если есть product_type
+      if (t.product_type) {
+        nameCell.value = {
+          richText: [
+            { text: (t.name||"") + "\n", font:{name:"Calibri",size:10,bold:isTop,color:{argb: sc ? sc[1].font : "FF0F172A"}} },
+            { text: t.product_type + "\n", font:{name:"Calibri",size:9,italic:true,color:{argb:"FF7C3AED"}} },
+            { text: t.subname||"",         font:{name:"Calibri",size:9,color:{argb:"FF64748B"}} },
+          ]
+        };
+      } else {
+        nameCell.value = [t.name||"", t.subname||""].filter(Boolean).join("\n");
+      }
 
       // Готовность убрана по запросу
 
       // Поле для решения — светло-жёлтый фон = заполни
-      const dc = dr.getCell(12);
+      const dc = dr.getCell(11);
       dc.style = { font:{name:"Calibri",size:10,italic:true,color:{argb:"FFCB8A00"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFFBEB"}}, alignment:{vertical:"middle",horizontal:"center"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}},left:{style:"medium",color:{argb:"FFFBBF24"}},right:{style:"medium",color:{argb:"FFFBBF24"}}} };
       dc.value = "← Ваше решение";
 
