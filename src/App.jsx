@@ -1267,7 +1267,7 @@ export default function App() {
     const wsP = wb.addWorksheet("📦 Позиции", { views:[{state:"frozen",xSplit:0,ySplit:4}] });
     const PCOLS = [
       {header:"#",           width:4},
-      {header:"Товар / Тип продукта / Бренд", width:36},
+      {header:"Товар",       width:36},
       {header:"Категория",   width:16},
       {header:"Почему тренд",width:38},
       {header:"Цена ₸",     width:14},
@@ -1312,16 +1312,16 @@ export default function App() {
     // Сортируем по heat desc
     const sorted = [...catData].sort((a,b)=>(b.heat||0)-(a.heat||0));
     sorted.forEach((t, idx) => {
-      const readyClean = (t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim();
       const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
       const supplyClean = (t.supply_source||"").replace(/[\u{1F1E6}-\u{1F1FF}]/gu,"").trim();
       const rowBg = idx%2===0 ? WHITE : LGRAY;
       const isTop = idx < 3;
+      const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
+      const nameColor = sc ? sc[1] : "FF0F172A";
 
-      const productCell = [t.name||"", t.product_type ? t.product_type : "", t.subname||""].filter(Boolean).join("\n");
       const dr = wsP.addRow([
         idx+1,
-        productCell,
+        "", // колонка Товар — заполним richText ниже
         t.category||"—",
         t.instagram_idea || t.social1_desc || "—",
         t.price_range||"—",
@@ -1329,45 +1329,43 @@ export default function App() {
         t.russia_status||"—",
         t.kz_status||"—",
         supplyClean||"—",
-        "", // поле для решения КМ
+        "← Ваше решение",
       ]);
-      dr.height = 52; // достаточно для 2-3 строк текста
+      dr.height = 56;
 
-      dr.eachCell({includeEmpty:true}, (cell, cn) => {
+      // Базовый стиль всех ячеек
+      for (let cn = 1; cn <= 10; cn++) {
+        const cell = dr.getCell(cn);
         cell.style = {
-          font: { name:"Calibri", size:10, bold: isTop && cn===2 },
-          fill: { type:"pattern", pattern:"solid", fgColor:{argb: isTop ? "FFFFF8FF" : rowBg} },
-          alignment: { vertical:"middle", wrapText:true, horizontal:cn===1?"center":"left" },
-          border: { bottom:{style:"thin",color:{argb:BORDER_COLOR}}, left: isTop && cn===2 ? {style:"medium",color:{argb:PURPLE}} : undefined },
+          font:      { name:"Calibri", size:10 },
+          fill:      { type:"pattern", pattern:"solid", fgColor:{argb: isTop ? "FFFFF8FF" : rowBg} },
+          alignment: { vertical:"middle", wrapText:true, horizontal: cn===1 ? "center" : "left" },
+          border:    { bottom:{style:"thin",color:{argb:BORDER_COLOR}} },
         };
-      });
-
-      // Цветной статус — используется в richText выше
-      const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
-
-      // Товар многострочный: name / тип / бренд
-      const nameCell = dr.getCell(2);
-      // Применяем rich text если есть product_type
-      if (t.product_type) {
-        nameCell.value = {
-          richText: [
-            { text: (t.name||"") + "\n", font:{name:"Calibri",size:10,bold:isTop,color:{argb: sc ? sc[1].font : "FF0F172A"}} },
-            { text: t.product_type + "\n", font:{name:"Calibri",size:9,italic:true,color:{argb:"FF7C3AED"}} },
-            { text: t.subname||"",         font:{name:"Calibri",size:9,color:{argb:"FF64748B"}} },
-          ]
-        };
-      } else {
-        nameCell.value = [t.name||"", t.subname||""].filter(Boolean).join("\n");
       }
 
-      // Готовность убрана по запросу
+      // Колонка 2 — richText: Название / Тип продукта / Бренд
+      const nameCell = dr.getCell(2);
+      nameCell.style = { ...nameCell.style, border:{...nameCell.style.border, left: isTop ? {style:"medium",color:{argb:PURPLE}} : undefined} };
+      nameCell.value = {
+        richText: [
+          { text: (t.name||"") + "\n",
+            font: {name:"Calibri", size:10, bold:true, color:{argb:nameColor}} },
+          ...(t.product_type ? [{ text: t.product_type + "\n",
+            font: {name:"Calibri", size:9, italic:true, color:{argb:"FF7C3AED"}} }] : []),
+          { text: t.subname||"",
+            font: {name:"Calibri", size:9, color:{argb:"FF64748B"}} },
+        ]
+      };
 
-      // Поле для решения — светло-жёлтый фон = заполни
-      const dc = dr.getCell(11);
-      dc.style = { font:{name:"Calibri",size:10,italic:true,color:{argb:"FFCB8A00"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFFBEB"}}, alignment:{vertical:"middle",horizontal:"center"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}},left:{style:"medium",color:{argb:"FFFBBF24"}},right:{style:"medium",color:{argb:"FFFBBF24"}}} };
-      dc.value = "← Ваше решение";
-
-      // Разделитель убран — ломал автофильтр Excel. Чередование фона заменяет визуально.
+      // Колонка 10 — Решение КМ
+      const dc = dr.getCell(10);
+      dc.style = {
+        font:      { name:"Calibri", size:10, italic:true, color:{argb:"FFCB8A00"} },
+        fill:      { type:"pattern", pattern:"solid", fgColor:{argb:"FFFFFBEB"} },
+        alignment: { vertical:"middle", horizontal:"center" },
+        border:    { bottom:{style:"thin",color:{argb:BORDER_COLOR}}, left:{style:"medium",color:{argb:"FFFBBF24"}}, right:{style:"medium",color:{argb:"FFFBBF24"}} },
+      };
     });
 
     // 3й лист убран — содержимое перенесено в Резюме
