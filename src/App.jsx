@@ -935,6 +935,51 @@ export default function App() {
     localStorage.setItem("ayan_cat_updates", JSON.stringify(updated));
   };
 
+  // ── Заполнить типы продуктов для существующих товаров ─────────────────────
+  const [fillingTypes, setFillingTypes] = useState(false);
+  const [fillProgress, setFillProgress] = useState("");
+
+  const fillProductTypes = async () => {
+    const missing = trends.filter(t => !t.product_type || t.product_type.trim() === "");
+    if (missing.length === 0) { alert("У всех товаров уже есть тип продукта!"); return; }
+    if (!window.confirm(`Заполнить тип продукта для ${missing.length} товаров? Займёт ~1-2 минуты.`)) return;
+    setFillingTypes(true);
+    const BATCH = 20;
+    let updated = [...trends];
+    for (let i = 0; i < missing.length; i += BATCH) {
+      const batch = missing.slice(i, i + BATCH);
+      setFillProgress(`Обрабатываю ${i+1}–${Math.min(i+BATCH, missing.length)} из ${missing.length}...`);
+      try {
+        const list = batch.map((t, idx) => `${idx+1}. ${t.name} (${t.subname||""}) — категория: ${t.category}`).join("\n");
+        const text = await callAI(`Для каждого товара напиши тип продукта на РУССКОМ языке, 2-4 слова. Только суть товара без названия бренда.
+Примеры: Исландский йогурт скир, Протеиновый батончик шоколад, Замороженные корейские клёцки, Влажные салфетки для новорождённых, Энергетический напиток, Охлаждённый лосось стейк, Эко-подгузники, Острый соус кочуджан, Веганская колбаса, Замороженная пицца.
+
+Список:
+${list}
+
+Верни ТОЛЬКО JSON массив без markdown, ровно ${batch.length} объектов в том же порядке:
+[{"name":"точное название","product_type":"тип на русском"}]`);
+        const parsed = parseJsonArray(text);
+        if (parsed) {
+          batch.forEach((t, bi) => {
+            const p = parsed[bi] || parsed.find(r => r.name === t.name);
+            if (p && p.product_type) {
+              const idx = updated.findIndex(u => u.name === t.name);
+              if (idx !== -1) {
+                updated[idx] = {...updated[idx], product_type: p.product_type};
+                if (updated[idx].id) sb.updateOne(updated[idx].id, {product_type: p.product_type});
+              }
+            }
+          });
+        }
+      } catch(e) { console.error("fillProductTypes error:", e.message); }
+    }
+    setTrends(updated);
+    setFillingTypes(false);
+    setFillProgress("");
+    alert(`Готово! Заполнено: ${updated.filter(t=>t.product_type).length} товаров`);
+  };
+
   const generatePost = async (item) => {
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
     try {
@@ -1491,6 +1536,16 @@ export default function App() {
             style={{background:"#ffffff",border:"1px solid #22c55e",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#16a34a",display:"flex",alignItems:"center",gap:6}}>
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
+
+          {/* Кнопка заполнения типов продуктов */}
+          {trends.some(t => !t.product_type || t.product_type.trim() === "") && (
+            <button
+              onClick={fillProductTypes}
+              disabled={fillingTypes}
+              style={{background:"#ffffff",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingTypes?"not-allowed":"pointer",color:"#b45309",display:"flex",alignItems:"center",gap:6,opacity:fillingTypes?0.7:1}}>
+              {fillingTypes ? `⏳ ${fillProgress}` : `🏷 Заполнить типы (${trends.filter(t=>!t.product_type||t.product_type.trim()==="").length})`}
+            </button>
+          )}
 
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
