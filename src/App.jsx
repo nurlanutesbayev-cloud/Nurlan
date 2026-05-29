@@ -1297,17 +1297,16 @@ export default function App() {
     const wsP = wb.addWorksheet("📦 Позиции", { views:[{state:"frozen",xSplit:0,ySplit:4}] });
     const PCOLS = [
       {header:"#",           width:4},
-      {header:"Товар",       width:26},
+      {header:"Товар",       width:28},
       {header:"Бренд",       width:20},
       {header:"Категория",   width:16},
-      {header:"Почему тренд",width:32},
+      {header:"Почему тренд",width:38},
       {header:"Цена ₸",     width:14},
-      {header:"Готовность",  width:20},
       {header:"Конкуренты",  width:22},
       {header:"Рос. рынок",  width:16},
       {header:"КЗ рынок",    width:16},
       {header:"Поставка",    width:18},
-      {header:"Решение КМ",  width:18},
+      {header:"Решение КМ",  width:20},
     ];
     wsP.columns = PCOLS.map(c=>({width:c.width}));
 
@@ -1354,17 +1353,16 @@ export default function App() {
         idx+1,
         t.name||"",
         t.subname||"",
-        t.instagram_idea || t.social1_desc || "—",
         t.category||"—",
+        t.instagram_idea || t.social1_desc || "—",
         t.price_range||"—",
-        readyClean,
         (t.competitors||[]).join(", ") || "—",
         t.russia_status||"—",
         t.kz_status||"—",
         supplyClean||"—",
         "", // поле для решения КМ
       ]);
-      dr.height = 40;
+      // Высота авто — не задаём, Excel растянет сам по содержимому
 
       dr.eachCell({includeEmpty:true}, (cell, cn) => {
         cell.style = {
@@ -1379,9 +1377,7 @@ export default function App() {
       const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
       if (sc) { const c=dr.getCell(2); c.style={...c.style,font:{...c.style.font,color:{argb:sc[1]}}}; }
 
-      // Цветная готовность
-      const rc = Object.entries(READY_STYLE).find(([k])=>readyClean.includes(k));
-      if (rc) { const c=dr.getCell(6); c.style={...c.style,font:{name:"Calibri",size:10,bold:true,color:{argb:rc[1].font}},fill:{type:"pattern",pattern:"solid",fgColor:{argb:rc[1].fill}}}; }
+      // Готовность убрана по запросу
 
       // Поле для решения — светло-жёлтый фон = заполни
       const dc = dr.getCell(11);
