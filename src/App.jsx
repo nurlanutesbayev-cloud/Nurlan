@@ -1153,6 +1153,282 @@ export default function App() {
     a.click(); URL.revokeObjectURL(url);
   };
 
+  // ── Выгрузка для категорийного менеджера ──────────────────────────────────
+  const exportKM = async () => {
+    if (!window.ExcelJS) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.bare.min.js";
+        s.onload = resolve; s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    const catName = filter === "Все" ? "Все категории" : filter;
+    const catData = filter === "Все" ? trends : trends.filter(t => t.category === filter);
+    if (catData.length === 0) { alert("Нет данных для выгрузки"); return; }
+
+    // Топ-3 по heat для резюме
+    const top3 = [...catData].sort((a,b) => (b.heat||0)-(a.heat||0)).slice(0,3);
+    const readyNow = catData.filter(t => t.procurement_ready === "🟢 Готов к закупке");
+    const hot = catData.filter(t => t.status?.includes("Горячий"));
+
+    const wb = new window.ExcelJS.Workbook();
+    wb.creator = "Аян FMCG Trend Intelligence";
+    wb.created = new Date();
+    const now = new Date();
+    const dateStr = now.toLocaleDateString("ru-KZ");
+    const monthStr = now.toLocaleString("ru-KZ", {month:"long", year:"numeric"});
+
+    const PURPLE  = "FF7C3AED";
+    const DPURPLE = "FF1E1B4B";
+    const MPURPLE = "FF2D2A5E";
+    const WHITE   = "FFFFFFFF";
+    const LGRAY   = "FFF8F7FF";
+    const BORDER_COLOR = "FFE2E8F0";
+
+    const cellStyle = (opts = {}) => ({
+      font:      { name:"Calibri", size:10, ...opts.font },
+      fill:      opts.fill ? { type:"pattern", pattern:"solid", fgColor:{argb:opts.fill} } : undefined,
+      alignment: { vertical:"middle", wrapText:true, ...opts.align },
+      border:    opts.border !== false ? { bottom:{style:"thin",color:{argb:BORDER_COLOR}} } : undefined,
+    });
+
+    // ── Лист 1: РЕЗЮМЕ ─────────────────────────────────────────────────────
+    const wsR = wb.addWorksheet("📋 Резюме", { views:[{showGridLines:false}] });
+    wsR.columns = [{width:3},{width:22},{width:32},{width:18},{width:18},{width:22},{width:20}];
+    const NC = 7;
+
+    // Большой заголовок
+    const r1 = wsR.addRow([`АЯН · FMCG Тренды — ${catName}`]);
+    wsR.mergeCells(1,1,1,NC); r1.height = 42;
+    r1.getCell(1).style = { font:{name:"Calibri",size:24,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:DPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    // Подзаголовок
+    const r2 = wsR.addRow([`Подготовлено: Маркетинг Аян  |  ${dateStr}  |  FMCG Trend Intelligence v3.1`]);
+    wsR.mergeCells(2,1,2,NC); r2.height = 18;
+    r2.getCell(1).style = { font:{name:"Calibri",size:9,italic:true,color:{argb:"FFCFCFE8"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:MPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    // Фиолетовая полоска
+    const r3 = wsR.addRow([]); r3.height = 6;
+    for(let c=1;c<=NC;c++) r3.getCell(c).style = {fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}};
+
+    wsR.addRow([]); // отступ
+
+    // KPI-блок
+    const r5 = wsR.addRow(["", "📦 Всего позиций", "", "🔥 Горячих", "", "🟢 Готовы к закупке", ""]);
+    wsR.mergeCells(5,2,5,3); wsR.mergeCells(5,4,5,5); wsR.mergeCells(5,6,5,7);
+    r5.height = 20;
+    ["B","D","F"].forEach(col => {
+      r5.getCell(col).style = { font:{name:"Calibri",size:10,bold:true,color:{argb:"FF64748B"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:LGRAY}}, alignment:{vertical:"middle",horizontal:"center"} };
+    });
+
+    const r6 = wsR.addRow(["", catData.length, "", hot.length, "", readyNow.length, ""]);
+    wsR.mergeCells(6,2,6,3); wsR.mergeCells(6,4,6,5); wsR.mergeCells(6,6,6,7);
+    r6.height = 36;
+    r6.getCell("B").style = { font:{name:"Calibri",size:28,bold:true,color:{argb:"FF7C3AED"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:LGRAY}}, alignment:{vertical:"middle",horizontal:"center"} };
+    r6.getCell("D").style = { font:{name:"Calibri",size:28,bold:true,color:{argb:"FFFF4D6D"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFF0F4"}}, alignment:{vertical:"middle",horizontal:"center"} };
+    r6.getCell("F").style = { font:{name:"Calibri",size:28,bold:true,color:{argb:"FF15803D"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFF0FDF4"}}, alignment:{vertical:"middle",horizontal:"center"} };
+
+    wsR.addRow([]); // отступ
+
+    // Заголовок ТОП-3
+    const r8 = wsR.addRow(["", "⭐ ТОП-3 ПОЗИЦИИ ДЛЯ ПЕРВООЧЕРЁДНОГО ВВОДА", "", "", "", "", ""]);
+    wsR.mergeCells(8,2,8,NC); r8.height = 28;
+    r8.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    // Шапка ТОП-3
+    const r9 = wsR.addRow(["", "Товар", "Почему сейчас", "Цена ₸", "Готовность", "Рекомендация", "Приоритет"]);
+    r9.height = 24;
+    ["B","C","D","E","F","G"].forEach(col => {
+      r9.getCell(col).style = { font:{name:"Calibri",size:10,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FF5B21B6"}}, alignment:{vertical:"middle",horizontal:"center",wrapText:true}, border:{bottom:{style:"medium",color:{argb:PURPLE}}} };
+    });
+
+    // Строки ТОП-3
+    const PRIORITY = ["🥇 Первый", "🥈 Второй", "🥉 Третий"];
+    top3.forEach((t, i) => {
+      const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
+      const readyClean  = (t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim();
+      const why = t.kz_detail || t.instagram_idea || "—";
+      const rowBg = i%2===0 ? WHITE : LGRAY;
+      const rr = wsR.addRow(["", `${t.name}\n${t.subname||""}`, why, t.price_range||"—", readyClean, `Завести на тестовый торец — ${statusClean} тренд`, PRIORITY[i]]);
+      rr.height = 44;
+      ["B","C","D","E","F","G"].forEach(col => {
+        rr.getCell(col).style = { font:{name:"Calibri",size:10}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:rowBg}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}}} };
+      });
+      rr.getCell("B").style = {...rr.getCell("B").style, font:{name:"Calibri",size:10,bold:true}};
+      rr.getCell("G").style = {...rr.getCell("G").style, font:{name:"Calibri",size:11,bold:true,color:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"center"}};
+    });
+
+    wsR.addRow([]); // отступ
+
+    // Механика тестового торца
+    const r14 = wsR.addRow(["", "🏪 МЕХАНИКА ТЕСТОВОГО ТОРЦА", "", "", "", "", ""]);
+    wsR.mergeCells(r14.number,2,r14.number,NC); r14.height = 26;
+    r14.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    const mechanics = [
+      ["", "📍 Размещение", "Торец гондолы рядом с основной категорией — снеки/напитки/кондитерка/соусы", "", "", "", ""],
+      ["", "⏱ Срок теста", "8 недель с момента выкладки", "", "", "", ""],
+      ["", "📊 Форматы", "Формат 3 (большие) — 20-25 SKU → Формат 2 — 10-15 SKU → Формат 1 — 5-8 SKU", "", "", "", ""],
+      ["", "✅ Критерий успеха", "Продажи выше среднего по категории → переводим в постоянный ассортимент", "", "", "", ""],
+      ["", "🔄 Ротация", "Раз в месяц 2-3 новые позиции заходят, 1-2 «выпускника» переезжают в категорию", "", "", "", ""],
+    ];
+    mechanics.forEach((row, i) => {
+      const mr = wsR.addRow(row);
+      mr.height = 32;
+      wsR.mergeCells(mr.number,3,mr.number,NC);
+      mr.getCell("B").style = { font:{name:"Calibri",size:10,bold:true,color:{argb:PURPLE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+      mr.getCell("C").style = { font:{name:"Calibri",size:10,color:{argb:"FF334155"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"} };
+    });
+
+    // Подпись
+    wsR.addRow([]);
+    const lastR = wsR.addRow(["", `Документ подготовлен: Маркетинг Аян · ${dateStr} · FMCG Trend Intelligence v3.1`, "", "", "", "", ""]);
+    wsR.mergeCells(lastR.number,2,lastR.number,NC);
+    lastR.getCell("B").style = { font:{name:"Calibri",size:9,italic:true,color:{argb:"FF94A3B8"}}, alignment:{vertical:"middle"} };
+
+    // ── Лист 2: ПОЗИЦИИ ────────────────────────────────────────────────────
+    const wsP = wb.addWorksheet("📦 Позиции", { views:[{state:"frozen",xSplit:0,ySplit:4}] });
+    const PCOLS = [
+      {header:"#",           width:4},
+      {header:"Товар",       width:26},
+      {header:"Бренд",       width:20},
+      {header:"Почему тренд",width:32},
+      {header:"Цена ₸",     width:14},
+      {header:"Готовность",  width:20},
+      {header:"Конкуренты",  width:22},
+      {header:"Рос. рынок",  width:16},
+      {header:"КЗ рынок",    width:16},
+      {header:"Поставка",    width:18},
+      {header:"Решение КМ",  width:18},
+    ];
+    wsP.columns = PCOLS.map(c=>({width:c.width}));
+
+    const rP1 = wsP.addRow([`АЯН · Тренды для КМ — ${catName} · ${monthStr}`]);
+    wsP.mergeCells(1,1,1,PCOLS.length); rP1.height = 36;
+    rP1.getCell(1).style = { font:{name:"Calibri",size:20,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:DPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    const rP2 = wsP.addRow([`Подготовлено: Маркетинг Аян  |  ${dateStr}  |  Передать ответ до: ${new Date(now.getTime()+7*24*60*60*1000).toLocaleDateString("ru-KZ")}`]);
+    wsP.mergeCells(2,1,2,PCOLS.length); rP2.height = 18;
+    rP2.getCell(1).style = { font:{name:"Calibri",size:9,italic:true,color:{argb:"FFCFCFE8"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:MPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    const rP3 = wsP.addRow([]); rP3.height = 5;
+    for(let c=1;c<=PCOLS.length;c++) rP3.getCell(c).style = {fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}};
+
+    const rP4 = wsP.addRow(PCOLS.map(c=>c.header));
+    rP4.height = 30;
+    rP4.eachCell(cell => {
+      cell.style = { font:{name:"Calibri",size:10,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"center",wrapText:true}, border:{bottom:{style:"medium",color:{argb:"FF5B21B6"}}} };
+    });
+    wsP.autoFilter = {from:{row:4,column:1},to:{row:4,column:PCOLS.length}};
+
+    const READY_STYLE = {
+      "Готов к закупке": {font:"FF15803D", fill:"FFF0FDF4"},
+      "Ищем поставщика": {font:"FF92400E", fill:"FFFEF3C7"},
+      "Недоступно в КЗ": {font:"FF991B1B", fill:"FFFFF0F4"},
+    };
+    const STATUS_COLORS = {
+      "Горячий":    "FFFF4D6D",
+      "Новинка":    "FFB45309",
+      "Растёт":     "FF16A34A",
+      "Стабильный": "FF475569",
+    };
+
+    // Сортируем по heat desc
+    const sorted = [...catData].sort((a,b)=>(b.heat||0)-(a.heat||0));
+    sorted.forEach((t, idx) => {
+      const readyClean = (t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim();
+      const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
+      const supplyClean = (t.supply_source||"").replace(/[\u{1F1E6}-\u{1F1FF}]/gu,"").trim();
+      const rowBg = idx%2===0 ? WHITE : LGRAY;
+      const isTop = idx < 3;
+
+      const dr = wsP.addRow([
+        idx+1,
+        t.name||"",
+        t.subname||"",
+        t.kz_detail || t.instagram_idea || "—",
+        t.price_range||"—",
+        readyClean,
+        (t.competitors||[]).join(", ") || "—",
+        t.russia_status||"—",
+        t.kz_status||"—",
+        supplyClean||"—",
+        "", // поле для решения КМ
+      ]);
+      dr.height = 40;
+
+      dr.eachCell({includeEmpty:true}, (cell, cn) => {
+        cell.style = {
+          font: { name:"Calibri", size:10, bold: isTop && cn===2 },
+          fill: { type:"pattern", pattern:"solid", fgColor:{argb: isTop ? "FFFFF8FF" : rowBg} },
+          alignment: { vertical:"middle", wrapText:true, horizontal:cn===1?"center":"left" },
+          border: { bottom:{style:"thin",color:{argb:BORDER_COLOR}}, left: isTop && cn===2 ? {style:"medium",color:{argb:PURPLE}} : undefined },
+        };
+      });
+
+      // Цветной статус
+      const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
+      if (sc) { const c=dr.getCell(2); c.style={...c.style,font:{...c.style.font,color:{argb:sc[1]}}}; }
+
+      // Цветная готовность
+      const rc = Object.entries(READY_STYLE).find(([k])=>readyClean.includes(k));
+      if (rc) { const c=dr.getCell(6); c.style={...c.style,font:{name:"Calibri",size:10,bold:true,color:{argb:rc[1].font}},fill:{type:"pattern",pattern:"solid",fgColor:{argb:rc[1].fill}}}; }
+
+      // Поле для решения — светло-жёлтый фон = заполни
+      const dc = dr.getCell(11);
+      dc.style = { font:{name:"Calibri",size:10,italic:true,color:{argb:"FFCB8A00"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFFBEB"}}, alignment:{vertical:"middle",horizontal:"center"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}},left:{style:"medium",color:{argb:"FFFBBF24"}},right:{style:"medium",color:{argb:"FFFBBF24"}}} };
+      dc.value = "← Ваше решение";
+
+      // Разделитель
+      const sep = wsP.addRow([]); sep.height = 4;
+      for(let c=1;c<=PCOLS.length;c++) sep.getCell(c).style={fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFF1F0FB"}}};
+    });
+
+    // ── Лист 3: КАК ЭТО РАБОТАЕТ ──────────────────────────────────────────
+    const wsH = wb.addWorksheet("📖 Как это работает", {views:[{showGridLines:false}]});
+    wsH.columns = [{width:3},{width:28},{width:60}];
+
+    const rH1 = wsH.addRow(["Концепция тестового торца — Аян FMCG Trends"]);
+    wsH.mergeCells(1,1,1,3); rH1.height = 38;
+    rH1.getCell(1).style = { font:{name:"Calibri",size:20,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:DPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+
+    wsH.addRow([]); // отступ
+
+    const steps = [
+      ["1️⃣", "Маркетинг анализирует тренды", "AI-система мониторит мировые тренды в FMCG, отбирает позиции актуальные для Казахстана и передаёт категорийным менеджерам"],
+      ["2️⃣", "КМ принимает решение", "Категорийный менеджер изучает список, выбирает позиции для ввода и ставит отметку в колонке «Решение КМ» на листе Позиции"],
+      ["3️⃣", "Байер находит поставщика", "По одобренным позициям ищем поставщика, договариваемся об условиях, завозим первую тестовую партию"],
+      ["4️⃣", "Выкладка на тестовый торец", "Товар размещается на торце гондолы рядом с основной категорией: Формат 3 → 20-25 SKU, Формат 2 → 10-15 SKU, Формат 1 → 5-8 SKU"],
+      ["5️⃣", "8 недель теста", "Замеряем продажи. Хорошие результаты → переводим в постоянный ассортимент. Слабые → убираем и фиксируем причину"],
+      ["6️⃣", "Ротация зоны", "Раз в месяц 2-3 новые тренды заходят на торец, 1-2 «выпускника» переезжают в основную категорию или выводятся"],
+    ];
+
+    steps.forEach((step, i) => {
+      wsH.addRow([]);
+      const sr = wsH.addRow(["", step[0] + " " + step[1], step[2]]);
+      sr.height = 48;
+      sr.getCell("B").style = { font:{name:"Calibri",size:12,bold:true,color:{argb:PURPLE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+      sr.getCell("C").style = { font:{name:"Calibri",size:11,color:{argb:"FF334155"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"} };
+    });
+
+    wsH.addRow([]);
+    const note = wsH.addRow(["", "💬 Вопросы и предложения", "Обращайтесь в маркетинг. Трекер обновляется еженедельно — новые тренды добавляются автоматически."]);
+    note.height = 36;
+    note.getCell("B").style = { font:{name:"Calibri",size:11,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+    note.getCell("C").style = { font:{name:"Calibri",size:11,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",wrapText:true} };
+
+    // Скачиваем
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Аян_КМ_${catName}_${dateStr.replace(/\./g,"-")}.xlsx`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
   const filtered = trends.filter(t=>{
     const catOk=filter==="Все"||t.category===filter;
     const readyOk=readyFilter==="Все"||(t.procurement_ready||"")===readyFilter;
@@ -1313,6 +1589,7 @@ export default function App() {
           {error&&<div style={{fontSize:11,color:"#f87171"}}>⚠️ {error}</div>}
         </div>
         <button style={B()} onClick={exportExcel}>⬇ Excel</button>
+        <button style={B({background:"#faf5ff",border:"1px solid #a78bfa",color:"#7c3aed"})} onClick={exportKM}>📋 Для КМ{filter!=="Все"?` · ${filter}`:""}</button>
         <button style={tabBtn("table")} onClick={()=>setTab("table")}>📊 Таблица</button>
         <button style={tabBtn("kanban")} onClick={()=>setTab("kanban")}>📋 Канбан</button>
       </div>
