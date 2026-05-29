@@ -946,39 +946,62 @@ export default function App() {
     setFillingTypes(true);
     const BATCH = 20;
     let updated = [...trends];
+    let filled = 0;
+
     for (let i = 0; i < missing.length; i += BATCH) {
       const batch = missing.slice(i, i + BATCH);
-      setFillProgress(`Обрабатываю ${i+1}–${Math.min(i+BATCH, missing.length)} из ${missing.length}...`);
+      setFillProgress(`${i+1}–${Math.min(i+BATCH, missing.length)} из ${missing.length}`);
       try {
-        const list = batch.map((t, idx) => `${idx+1}. ${t.name} (${t.subname||""}) — категория: ${t.category}`).join("\n");
-        const text = await callAI(`Для каждого товара напиши тип продукта на РУССКОМ языке, 2-4 слова. Только суть товара без названия бренда.
-Примеры: Исландский йогурт скир, Протеиновый батончик шоколад, Замороженные корейские клёцки, Влажные салфетки для новорождённых, Энергетический напиток, Охлаждённый лосось стейк, Эко-подгузники, Острый соус кочуджан, Веганская колбаса, Замороженная пицца.
+        const list = batch.map((t, idx) =>
+          `${idx+1}. ${t.name}${t.subname ? " ("+t.subname+")" : ""} — категория: ${t.category}`
+        ).join("\n");
 
-Список:
+        const text = await callAI(`Для каждого товара из списка напиши тип продукта на РУССКОМ языке, 2-4 слова. Только суть — что это за продукт, без названия бренда.
+Примеры хороших типов: Йогурт скир исландский, Протеиновый батончик, Замороженные токпокки, Влажные салфетки для новорождённых, Энергетический напиток, Стейк лосося охлаждённый, Эко-подгузники, Соус кочуджан острый, Веганские сосиски, Пицца замороженная, Мороженое моти, Крем-суп быстрого приготовления, Сухие снеки из нори.
+
+Список (${batch.length} товаров):
 ${list}
 
-Верни ТОЛЬКО JSON массив без markdown, ровно ${batch.length} объектов в том же порядке:
-[{"name":"точное название","product_type":"тип на русском"}]`);
+Верни ТОЛЬКО JSON массив без markdown, ровно ${batch.length} объектов в том же порядке что и список:
+[{"i":0,"product_type":"тип на русском"},{"i":1,"product_type":"..."}]`);
+
         const parsed = parseJsonArray(text);
-        if (parsed) {
-          batch.forEach((t, bi) => {
-            const p = parsed[bi] || parsed.find(r => r.name === t.name);
-            if (p && p.product_type) {
-              const idx = updated.findIndex(u => u.name === t.name);
-              if (idx !== -1) {
-                updated[idx] = {...updated[idx], product_type: p.product_type};
-                if (updated[idx].id) sb.updateOne(updated[idx].id, {product_type: p.product_type});
-              }
+        if (parsed && parsed.length > 0) {
+          // Сохраняем напрямую в Supabase через REST (не через Edge)
+          for (const p of parsed) {
+            const bi = typeof p.i === "number" ? p.i : parsed.indexOf(p);
+            const t = batch[bi];
+            if (!t || !p.product_type) continue;
+            const idx = updated.findIndex(u => u.name === t.name);
+            if (idx === -1) continue;
+            updated[idx] = {...updated[idx], product_type: p.product_type};
+            filled++;
+            // Прямой PATCH в Supabase REST API
+            if (updated[idx].id) {
+              fetch(`${SUPABASE_URL}/rest/v1/trends?id=eq.${updated[idx].id}`, {
+                method: "PATCH",
+                headers: {
+                  apikey: SUPABASE_KEY,
+                  Authorization: `Bearer ${SUPABASE_KEY}`,
+                  "Content-Type": "application/json",
+                  "Prefer": "return=minimal",
+                },
+                body: JSON.stringify({ product_type: p.product_type }),
+              }).catch(e => console.error("PATCH error:", e.message));
             }
-          });
+          }
+          // Обновляем state сразу чтобы видеть прогресс в трекере
+          setTrends([...updated]);
         }
       } catch(e) { console.error("fillProductTypes error:", e.message); }
     }
-    setTrends(updated);
+
+    setTrends([...updated]);
     setFillingTypes(false);
     setFillProgress("");
-    alert(`Готово! Заполнено: ${updated.filter(t=>t.product_type).length} товаров`);
+    alert(`Готово! Заполнено типов: ${filled} из ${missing.length}`);
   };
+
 
   const generatePost = async (item) => {
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
