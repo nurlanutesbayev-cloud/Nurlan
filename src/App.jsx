@@ -747,6 +747,8 @@ export default function App() {
 
   // ── История генераций ──────────────────────────────────────────────────────
   const [historyModal, setHistoryModal] = useState(false);
+  const [kmModal, setKmModal]           = useState(false);
+  const [kmDecisions, setKmDecisions]   = useState({});
 
   const [authed, setAuthed] = useState(() => {
     const ts = Number(localStorage.getItem("ayan_authed_ts"));
@@ -1328,7 +1330,7 @@ export default function App() {
         supplyClean||"—",
         "", // поле для решения КМ
       ]);
-      // Высота авто — не задаём, Excel растянет сам по содержимому
+      dr.height = 52; // достаточно для 2-3 строк текста
 
       dr.eachCell({includeEmpty:true}, (cell, cn) => {
         cell.style = {
@@ -1350,9 +1352,7 @@ export default function App() {
       dc.style = { font:{name:"Calibri",size:10,italic:true,color:{argb:"FFCB8A00"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFFBEB"}}, alignment:{vertical:"middle",horizontal:"center"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}},left:{style:"medium",color:{argb:"FFFBBF24"}},right:{style:"medium",color:{argb:"FFFBBF24"}}} };
       dc.value = "← Ваше решение";
 
-      // Разделитель
-      const sep = wsP.addRow([]); sep.height = 4;
-      for(let c=1;c<=PCOLS.length;c++) sep.getCell(c).style={fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFF1F0FB"}}};
+      // Разделитель убран — ломал автофильтр Excel. Чередование фона заменяет визуально.
     });
 
     // 3й лист убран — содержимое перенесено в Резюме
@@ -1470,6 +1470,13 @@ export default function App() {
             onClick={() => setHistoryModal(true)}
             style={{background:"#ffffff",border:"1px solid #a78bfa",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#7c3aed",display:"flex",alignItems:"center",gap:6}}>
             📚 История генераций
+          </button>
+
+          {/* Кнопка решений КМ */}
+          <button
+            onClick={() => { setKmDecisions({}); setKmModal(true); }}
+            style={{background:"#ffffff",border:"1px solid #22c55e",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#16a34a",display:"flex",alignItems:"center",gap:6}}>
+            🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
 
           {filter !== "Все" && !loading && (
@@ -1789,6 +1796,138 @@ export default function App() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Модал: Решения КМ ───────────────────────────────────────────────── */}
+      {kmModal && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.55)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"32px 16px",overflowY:"auto"}}
+          onClick={e=>{if(e.target===e.currentTarget)setKmModal(false);}}>
+          <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,width:"100%",maxWidth:860,boxShadow:"0 24px 64px rgba(15,23,42,0.14)",overflow:"hidden"}}>
+
+            {/* Шапка */}
+            <div style={{padding:"16px 20px",background:"#f0fdf4",borderBottom:"1px solid #bbf7d0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontSize:11,color:"#16a34a",fontWeight:700,marginBottom:2,letterSpacing:"0.06em"}}>🗂 ОБРАБОТКА РЕШЕНИЙ КМ</div>
+                <div style={{fontSize:16,fontWeight:700,color:"#0f172a"}}>
+                  {filter==="Все" ? "Все категории" : `${CAT_ICONS[filter]||""} ${filter}`}
+                  <span style={{marginLeft:8,fontSize:12,color:"#64748b",fontWeight:400}}>{filtered.length} позиций</span>
+                </div>
+              </div>
+              <button onClick={()=>setKmModal(false)} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#64748b",fontSize:13,fontWeight:700}}>✕</button>
+            </div>
+
+            {/* Легенда */}
+            <div style={{padding:"10px 20px",background:"#fafafa",borderBottom:"1px solid #f0f0f0",display:"flex",gap:20,fontSize:11,color:"#64748b"}}>
+              <span><span style={{fontWeight:700,color:"#16a34a"}}>✅ Берём</span> → В работе у ком. отдела</span>
+              <span><span style={{fontWeight:700,color:"#f59e0b"}}>⏳ Обсуждаем</span> → остаётся в "Идея"</span>
+              <span><span style={{fontWeight:700,color:"#ff4d6d"}}>❌ Не берём</span> → Не договорились</span>
+              <span style={{marginLeft:"auto",color:"#94a3b8"}}>
+                Отмечено: {Object.keys(kmDecisions).length} / {filtered.length}
+              </span>
+            </div>
+
+            {/* Быстрые кнопки */}
+            <div style={{padding:"8px 20px",borderBottom:"1px solid #f0f0f0",display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:11,color:"#64748b",marginRight:4}}>Выбрать все как:</span>
+              {[
+                {label:"✅ Все берём",    val:"take",    color:"#16a34a", bg:"#f0fdf4", border:"#86efac"},
+                {label:"⏳ Все обсуждаем",val:"discuss", color:"#92400e", bg:"#fffbeb", border:"#fde68a"},
+                {label:"❌ Все не берём", val:"reject",  color:"#991b1b", bg:"#fff0f4", border:"#fca5a5"},
+              ].map(opt=>(
+                <button key={opt.val} onClick={()=>{
+                  const all = {};
+                  filtered.forEach(t=>{ all[t.name]=opt.val; });
+                  setKmDecisions(all);
+                }} style={{fontSize:11,padding:"4px 12px",border:`1px solid ${opt.border}`,borderRadius:6,background:opt.bg,color:opt.color,cursor:"pointer",fontWeight:600}}>
+                  {opt.label}
+                </button>
+              ))}
+              <button onClick={()=>setKmDecisions({})} style={{fontSize:11,padding:"4px 10px",border:"1px solid #e2e8f0",borderRadius:6,background:"transparent",color:"#94a3b8",cursor:"pointer",marginLeft:4}}>
+                Сбросить
+              </button>
+            </div>
+
+            {/* Список товаров */}
+            <div style={{maxHeight:"52vh",overflowY:"auto"}}>
+              {filtered.map((t, i) => {
+                const dec = kmDecisions[t.name];
+                const rowBg = dec==="take" ? "#f0fdf4" : dec==="reject" ? "#fff5f7" : dec==="discuss" ? "#fffbeb" : i%2===0?"#ffffff":"#fafafa";
+                const statusColor = {"🔥 Горячий":"#ff4d6d","✨ Новинка":"#f59e0b","📈 Растёт":"#22c55e","✅ Стабильный":"#64748b"}[t.status]||"#64748b";
+                return (
+                  <div key={t.name} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 20px",borderBottom:"1px solid #f0f0f0",background:rowBg,transition:"background 0.15s"}}>
+                    {/* Номер */}
+                    <div style={{fontSize:11,color:"#94a3b8",width:20,flexShrink:0,textAlign:"center"}}>{i+1}</div>
+
+                    {/* Инфо о товаре */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+                        <span style={{fontSize:13,fontWeight:600,color:"#0f172a"}}>{t.name}</span>
+                        <span style={{fontSize:10,color:statusColor,fontWeight:700}}>{t.status}</span>
+                      </div>
+                      <div style={{display:"flex",gap:10,fontSize:11,color:"#64748b"}}>
+                        <span>{t.subname}</span>
+                        {filter==="Все" && <span style={{color:"#a78bfa"}}>· {t.category}</span>}
+                        <span style={{color:"#fbbf24",fontWeight:600}}>· {t.price_range||"—"}</span>
+                        <span>· {(t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim()}</span>
+                      </div>
+                    </div>
+
+                    {/* Кнопки решения */}
+                    <div style={{display:"flex",gap:6,flexShrink:0}}>
+                      {[
+                        {val:"take",    label:"✅ Берём",      color:"#16a34a", bg: dec==="take"    ?"#16a34a":"#f0fdf4", border:"#22c55e", textColor: dec==="take"?"#fff":"#16a34a"},
+                        {val:"discuss", label:"⏳ Обсуждаем", color:"#92400e", bg: dec==="discuss" ?"#f59e0b":"#fffbeb", border:"#fde68a", textColor: dec==="discuss"?"#fff":"#92400e"},
+                        {val:"reject",  label:"❌ Не берём",  color:"#991b1b", bg: dec==="reject"  ?"#ff4d6d":"#fff5f7", border:"#fca5a5", textColor: dec==="reject"?"#fff":"#991b1b"},
+                      ].map(opt=>(
+                        <button key={opt.val} onClick={()=>setKmDecisions(prev=>({...prev,[t.name]:prev[t.name]===opt.val?undefined:opt.val}))}
+                          style={{fontSize:11,padding:"5px 12px",border:`1px solid ${opt.border}`,borderRadius:6,background:opt.bg,color:opt.textColor,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Футер — сохранить */}
+            <div style={{padding:"14px 20px",borderTop:"1px solid #e2e8f0",background:"#f8fafc",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+              <div style={{fontSize:12,color:"#64748b"}}>
+                {Object.keys(kmDecisions).length === 0
+                  ? "Отметьте решение по каждой позиции"
+                  : <>
+                      <span style={{color:"#16a34a",fontWeight:700}}>✅ {Object.values(kmDecisions).filter(v=>v==="take").length} берём</span>
+                      {" · "}
+                      <span style={{color:"#f59e0b",fontWeight:700}}>⏳ {Object.values(kmDecisions).filter(v=>v==="discuss").length} обсуждаем</span>
+                      {" · "}
+                      <span style={{color:"#ff4d6d",fontWeight:700}}>❌ {Object.values(kmDecisions).filter(v=>v==="reject").length} не берём</span>
+                    </>
+                }
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setKmModal(false)}
+                  style={{padding:"8px 16px",border:"1px solid #e2e8f0",borderRadius:8,background:"#f1f5f9",color:"#64748b",cursor:"pointer",fontSize:12,fontWeight:600}}>
+                  Отмена
+                </button>
+                <button
+                  disabled={Object.keys(kmDecisions).length===0}
+                  onClick={async ()=>{
+                    const DECISION_MAP = { take:"commercial", discuss:"idea", reject:"nodeal" };
+                    const updates = Object.entries(kmDecisions).filter(([,v])=>v);
+                    for (const [name, dec] of updates) {
+                      const kanban = DECISION_MAP[dec];
+                      updateTrend(name, {kanban});
+                    }
+                    setKmModal(false);
+                    setKmDecisions({});
+                  }}
+                  style={{padding:"8px 20px",border:"none",borderRadius:8,background:Object.keys(kmDecisions).length>0?"#16a34a":"#94a3b8",color:"#fff",cursor:Object.keys(kmDecisions).length>0?"pointer":"not-allowed",fontSize:12,fontWeight:700}}>
+                  💾 Сохранить решения ({Object.keys(kmDecisions).length})
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
