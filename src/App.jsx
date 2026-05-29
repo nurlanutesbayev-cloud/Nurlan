@@ -32,6 +32,7 @@ const sb = {
     const rows = trends.map(t => ({
       name: t.name, subname: t.subname || "", category: t.category,
       status: t.status, heat: t.heat, region: t.region,
+      product_type: t.product_type || "",
       instagram_idea: t.instagram_idea || "",
       russia_status: t.russia_status || "", russia_detail: t.russia_detail || "",
       kz_status: t.kz_status || "", kz_detail: t.kz_detail || "",
@@ -193,7 +194,7 @@ const KANBAN_COLS = [
   {id:"nosupplier",  label:"🔍 Поставщик не найден",    color:"#fbbf24"},
   {id:"nodeal",      label:"🚫 Не договорились",        color:"#ff4d6d"},
 ];
-const BASE = {procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
+const BASE = {product_type:"", procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
 
 const FALLBACK = [
   {...BASE, name:"Корейская лапша Buldak", subname:"Samyang", category:"Готовая еда", status:"🔥 Горячий", heat:10, region:"Азия", instagram_idea:"Reaction-видео с самой острой лапшей — viral-контент!", russia_status:"Активно продаётся", russia_detail:"Wildberries, Ozon, азиатские маркеты", kz_status:"Активно продаётся", kz_detail:"Kaspi, Magnum, Small, азиатские маркеты Алматы", social1_platform:"TikTok", social1_desc:"#buldakchallenge — 2 млрд просмотров", social2_platform:"Instagram", social2_desc:"Reaction-видео казахстанских блогеров", procurement_ready:"🟢 Готов к закупке", price_range:"800–1 200 ₸", competitors:["Magnum","Small"]},
@@ -854,6 +855,7 @@ export default function App() {
 Структура объекта:
 {
   "name": "Бренд + название позиции",
+  "product_type": "Тип продукта 2-4 слова (например: Исландский йогурт скир, Протеиновый батончик, Корейские рисовые клёцки, Влажные салфетки 99% вода)",
   "subname": "Производитель + страна",
   "category": "${targetCat || "категория из списка"}",
   "status": "🔥 Горячий" | "✨ Новинка" | "📈 Растёт" | "✅ Стабильный",
@@ -1319,7 +1321,7 @@ export default function App() {
 
       const dr = wsP.addRow([
         idx+1,
-        t.name||"",
+        t.product_type ? `${t.name}\n[${t.product_type}]` : (t.name||""),
         t.subname||"",
         t.category||"—",
         t.instagram_idea || t.social1_desc || "—",
@@ -1592,6 +1594,7 @@ export default function App() {
                         <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
                           <div style={{flex:1}}>
                             <div style={{fontWeight:600,marginBottom:2}}>{t.name}</div>
+                            {t.product_type && <div style={{color:"#7c3aed",fontSize:10,fontWeight:600,marginBottom:1}}>{t.product_type}</div>}
                             <div style={{color:"#64748b",fontSize:10}}>{t.subname}</div>
                           </div>
                           <div style={{display:"flex",flexDirection:"column",gap:3}}>
