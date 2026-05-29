@@ -1004,8 +1004,71 @@ ${list}
     alert(`Готово! Заполнено типов: ${filled} из ${missing.length}`);
   };
 
+  // ── Заполнить trend_reason для существующих товаров ───────────────────────
+  const [fillingReasons, setFillingReasons] = useState(false);
+  const [fillReasonsProgress, setFillReasonsProgress] = useState("");
 
-  const generatePost = async (item) => {
+  const fillTrendReasons = async () => {
+    const missing = trends.filter(t => !t.trend_reason || t.trend_reason.trim() === "");
+    if (missing.length === 0) { alert("Причины трендов уже заполнены!"); return; }
+    if (!window.confirm(`Заполнить причины трендов для ${missing.length} товаров? Займёт ~2-3 минуты.`)) return;
+    setFillingReasons(true);
+    const BATCH = 15;
+    let updated = [...trends];
+    let filled = 0;
+
+    for (let i = 0; i < missing.length; i += BATCH) {
+      const batch = missing.slice(i, i + BATCH);
+      setFillReasonsProgress(`${i+1}–${Math.min(i+BATCH, missing.length)} из ${missing.length}`);
+      try {
+        const list = batch.map((t, idx) =>
+          `${idx+1}. ${t.name} (${t.subname||""}) — категория: ${t.category}, регион: ${t.region}, статус: ${t.status}`
+        ).join("\n");
+
+        const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+        const text = await callAI(`Сегодня ${today}. Ты FMCG-эксперт по Казахстану.
+
+Для каждого товара напиши краткое бизнес-обоснование тренда на РУССКОМ языке — 2-3 предложения. Пиши для категорийного менеджера супермаркета, не для соцсетей. Включай: конкретные цифры роста/просмотров, почему тренд актуален именно сейчас, почему это важно для Казахстана/Астаны/Карганды.
+
+Список (${batch.length} товаров):
+${list}
+
+Верни ТОЛЬКО JSON массив без markdown, ровно ${batch.length} объектов в том же порядке:
+[{"i":0,"trend_reason":"обоснование на русском"},{"i":1,"trend_reason":"..."}]`);
+
+        const parsed = parseJsonArray(text);
+        if (parsed && parsed.length > 0) {
+          batch.forEach((t, bi) => {
+            const p = parsed[bi] || parsed.find(r => r.i === bi);
+            if (p && p.trend_reason) {
+              const idx = updated.findIndex(u => u.name === t.name);
+              if (idx === -1) return;
+              updated[idx] = {...updated[idx], trend_reason: p.trend_reason};
+              filled++;
+              if (updated[idx].id) {
+                fetch(`${SUPABASE_URL}/rest/v1/trends?id=eq.${updated[idx].id}`, {
+                  method: "PATCH",
+                  headers: {
+                    apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+                    "Content-Type": "application/json", "Prefer": "return=minimal",
+                  },
+                  body: JSON.stringify({ trend_reason: p.trend_reason }),
+                }).catch(e => console.error("PATCH trend_reason error:", e));
+              }
+            }
+          });
+          setTrends([...updated]);
+        }
+      } catch(e) { console.error("fillTrendReasons error:", e.message); }
+    }
+
+    setTrends([...updated]);
+    setFillingReasons(false);
+    setFillReasonsProgress("");
+    alert(`Готово! Заполнено причин: ${filled} из ${missing.length}`);
+  };
+
+
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
     try {
       const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
@@ -1561,6 +1624,14 @@ ${list}
             style={{background:"#ffffff",border:"1px solid #22c55e",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#16a34a",display:"flex",alignItems:"center",gap:6}}>
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
+
+          {/* Разовая кнопка заполнения причин трендов */}
+          {trends.some(t => !t.trend_reason || t.trend_reason.trim() === "") && (
+            <button onClick={fillTrendReasons} disabled={fillingReasons}
+              style={{background:"#ffffff",border:"1px solid #3b82f6",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingReasons?"not-allowed":"pointer",color:"#1d4ed8",display:"flex",alignItems:"center",gap:6,opacity:fillingReasons?0.7:1}}>
+              {fillingReasons ? `⏳ ${fillReasonsProgress}` : `📊 Заполнить причины (${trends.filter(t=>!t.trend_reason||t.trend_reason.trim()==="").length})`}
+            </button>
+          )}
 
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
