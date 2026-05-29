@@ -11,20 +11,24 @@ const EDGE_AI_URL = "https://acvbjpjtohtkulmbbpng.supabase.co/functions/v1/gener
 const sb = {
   async getAll() {
     try {
-      const r = await fetch(EDGE_URL, {
+      // Прямой REST — всегда получаем все колонки включая product_type и trend_reason
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        if (data && data.length > 0) return data;
+      }
+      // Fallback на Edge Function
+      const r2 = await fetch(EDGE_URL, {
         method: "GET",
         headers: { "Authorization": `Bearer ${SUPABASE_KEY}`, "Content-Type": "application/json" }
       });
-      if (!r.ok) { console.error("Edge error:", await r.text()); return []; }
-      const json = await r.json();
+      if (!r2.ok) return [];
+      const json = await r2.json();
       return json.data || [];
     } catch(e) {
-      try {
-        const r2 = await fetch(`${SUPABASE_URL}/rest/v1/trends?select=*&order=created_at.asc`, {
-          headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
-        });
-        if (r2.ok) return r2.json();
-      } catch(_) {}
+      console.error("getAll error:", e.message);
       return [];
     }
   },
