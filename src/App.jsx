@@ -1267,7 +1267,8 @@ export default function App() {
     const wsP = wb.addWorksheet("📦 Позиции", { views:[{state:"frozen",xSplit:0,ySplit:4}] });
     const PCOLS = [
       {header:"#",           width:4},
-      {header:"Товар",       width:28},
+      {header:"Товар",       width:26},
+      {header:"Тип продукта",width:22},
       {header:"Бренд",       width:20},
       {header:"Категория",   width:16},
       {header:"Почему тренд",width:38},
@@ -1321,7 +1322,8 @@ export default function App() {
 
       const dr = wsP.addRow([
         idx+1,
-        t.product_type ? `${t.name}\n[${t.product_type}]` : (t.name||""),
+        t.name||"",
+        t.product_type||"—",
         t.subname||"",
         t.category||"—",
         t.instagram_idea || t.social1_desc || "—",
@@ -1343,14 +1345,18 @@ export default function App() {
         };
       });
 
-      // Цветной статус
+      // Цветной статус на названии товара
       const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
       if (sc) { const c=dr.getCell(2); c.style={...c.style,font:{...c.style.font,color:{argb:sc[1]}}}; }
+
+      // Тип продукта — фиолетовый курсив
+      const tc = dr.getCell(3);
+      tc.style = {...tc.style, font:{name:"Calibri",size:10,italic:true,color:{argb:"FF7C3AED"}}};
 
       // Готовность убрана по запросу
 
       // Поле для решения — светло-жёлтый фон = заполни
-      const dc = dr.getCell(11);
+      const dc = dr.getCell(12);
       dc.style = { font:{name:"Calibri",size:10,italic:true,color:{argb:"FFCB8A00"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFFFFBEB"}}, alignment:{vertical:"middle",horizontal:"center"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}},left:{style:"medium",color:{argb:"FFFBBF24"}},right:{style:"medium",color:{argb:"FFFBBF24"}}} };
       dc.value = "← Ваше решение";
 
