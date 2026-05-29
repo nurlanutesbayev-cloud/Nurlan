@@ -1216,7 +1216,7 @@ export default function App() {
     wsR.addRow([]); // отступ
 
     // KPI-блок
-    const r5 = wsR.addRow(["", "📦 Всего позиций", "", "🔥 Горячих", "", "🟢 Готовы к закупке", ""]);
+    const r5 = wsR.addRow(["", "Всего позиций", "", "Горячих", "", "Готовы к закупке", ""]);
     wsR.mergeCells(r5.number,2,r5.number,3); wsR.mergeCells(r5.number,4,r5.number,5); wsR.mergeCells(r5.number,6,r5.number,7);
     r5.height = 20;
     ["B","D","F"].forEach(col => {
@@ -1232,59 +1232,25 @@ export default function App() {
 
     wsR.addRow([]); // отступ
 
-    // Заголовок ТОП-3
-    const r8 = wsR.addRow(["", "⭐ ТОП-3 ПОЗИЦИИ ДЛЯ ПЕРВООЧЕРЁДНОГО ВВОДА", "", "", "", "", ""]);
-    wsR.mergeCells(r8.number,2,r8.number,NC); r8.height = 28;
-    r8.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+    // Как это работает — процесс от тренда до полки
+    const rProc = wsR.addRow(["", "КАК ЭТО РАБОТАЕТ — ОТ ТРЕНДА ДО ПОЛКИ", "", "", "", "", ""]);
+    wsR.mergeCells(rProc.number,2,rProc.number,NC); rProc.height = 28;
+    rProc.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
 
-    // Шапка ТОП-3
-    const r9 = wsR.addRow(["", "Товар", "Почему это тренд", "Цена ₸", "Готовность", "Рекомендация байеру", "Приоритет"]);
-    r9.height = 24;
-    ["B","C","D","E","F","G"].forEach(col => {
-      r9.getCell(col).style = { font:{name:"Calibri",size:10,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FF5B21B6"}}, alignment:{vertical:"middle",horizontal:"center",wrapText:true}, border:{bottom:{style:"medium",color:{argb:PURPLE}}} };
-    });
-
-    // Строки ТОП-3
-    const PRIORITY = ["🥇 Первый", "🥈 Второй", "🥉 Третий"];
-    top3.forEach((t, i) => {
-      const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
-      const readyClean  = (t.procurement_ready||"").replace(/[🟢🟡🔴]/g,"").trim();
-      const why = t.instagram_idea || t.social1_desc || "—";
-      const rowBg = i%2===0 ? WHITE : LGRAY;
-      const rec = t.procurement_ready === "🟢 Готов к закупке"
-        ? `Тест-запуск немедленно — поставщик готов. Старт с форматов 3, приоритет ${t.region}`
-        : t.procurement_ready === "🟡 Ищем поставщика"
-        ? `Найти поставщика → торец формат 3. Регион: ${t.region}. Интерес: ${t.heat}/10`
-        : `Мониторинг — пока недоступно в КЗ. Отслеживать появление поставщика`;
-      const rr = wsR.addRow(["", `${t.name}\n${t.subname||""}`, why, t.price_range||"—", readyClean, rec, PRIORITY[i]]);
-      rr.height = 44;
-      ["B","C","D","E","F","G"].forEach(col => {
-        rr.getCell(col).style = { font:{name:"Calibri",size:10}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:rowBg}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"}, border:{bottom:{style:"thin",color:{argb:BORDER_COLOR}}} };
-      });
-      rr.getCell("B").style = {...rr.getCell("B").style, font:{name:"Calibri",size:10,bold:true}};
-      rr.getCell("G").style = {...rr.getCell("G").style, font:{name:"Calibri",size:11,bold:true,color:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"center"}};
-    });
-
-    wsR.addRow([]); // отступ
-
-    // Механика тестового торца
-    const r14 = wsR.addRow(["", "🏪 МЕХАНИКА ТЕСТОВОГО ТОРЦА", "", "", "", "", ""]);
-    wsR.mergeCells(r14.number,2,r14.number,NC); r14.height = 26;
-    r14.getCell("B").style = { font:{name:"Calibri",size:13,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
-
-    const mechanics = [
-      ["", "📍 Размещение", "Торец стеллажа рядом с основной категорией — снеки/напитки/кондитерка/соусы", "", "", "", ""],
-      ["", "⏱ Срок теста", "8 недель с момента выкладки", "", "", "", ""],
-      ["", "📊 Форматы", "Формат 3 (большие) — 20-25 SKU → Формат 2 — 10-15 SKU → Формат 1 — 5-8 SKU", "", "", "", ""],
-      ["", "✅ Критерий успеха", "Продажи выше среднего по категории → переводим в постоянный ассортимент", "", "", "", ""],
-      ["", "🔄 Ротация", "Раз в месяц 2-3 новые позиции заходят, 1-2 «выпускника» переезжают в категорию", "", "", "", ""],
+    const steps = [
+      ["1.", "Маркетинг анализирует тренды",   "AI-система мониторит мировые тренды в FMCG, отбирает позиции актуальные для Казахстана и передаёт категорийным менеджерам"],
+      ["2.", "КМ принимает решение",            "Категорийный менеджер изучает список, выбирает позиции для ввода и ставит отметку в колонке «Решение КМ» на листе Позиции"],
+      ["3.", "Байер находит поставщика",        "По одобренным позициям ищем поставщика, договариваемся об условиях, завозим первую тестовую партию"],
+      ["4.", "Выкладка на тестовый торец",      "Товар размещается на торце стеллажа рядом с основной категорией: Формат 3 — 20-25 SKU, Формат 2 — 10-15 SKU, Формат 1 — 5-8 SKU"],
+      ["5.", "8 недель теста",                  "Замеряем продажи. Хорошие результаты — переводим в постоянный ассортимент. Слабые — убираем и фиксируем причину"],
+      ["6.", "Ротация зоны",                    "Раз в месяц 2-3 новые тренды заходят на торец, 1-2 выпускника переезжают в основную категорию или выводятся"],
     ];
-    mechanics.forEach((row, i) => {
-      const mr = wsR.addRow(row);
-      mr.height = 32;
-      wsR.mergeCells(mr.number,3,mr.number,NC);
-      mr.getCell("B").style = { font:{name:"Calibri",size:10,bold:true,color:{argb:PURPLE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
-      mr.getCell("C").style = { font:{name:"Calibri",size:10,color:{argb:"FF334155"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"} };
+    steps.forEach((step, i) => {
+      const sr = wsR.addRow(["", step[0] + "  " + step[1], step[2], "", "", "", ""]);
+      sr.height = 36;
+      wsR.mergeCells(sr.number,3,sr.number,NC);
+      sr.getCell("B").style = { font:{name:"Calibri",size:11,bold:true,color:{argb:PURPLE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
+      sr.getCell("C").style = { font:{name:"Calibri",size:10,color:{argb:"FF334155"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left",indent:1} };
     });
 
     // Подпись
@@ -1389,38 +1355,7 @@ export default function App() {
       for(let c=1;c<=PCOLS.length;c++) sep.getCell(c).style={fill:{type:"pattern",pattern:"solid",fgColor:{argb:"FFF1F0FB"}}};
     });
 
-    // ── Лист 3: КАК ЭТО РАБОТАЕТ ──────────────────────────────────────────
-    const wsH = wb.addWorksheet("📖 Как это работает", {views:[{showGridLines:false}]});
-    wsH.columns = [{width:4},{width:30},{width:65}];
-
-    const rH1 = wsH.addRow(["Концепция тестового торца — Аян FMCG Trends"]);
-    wsH.mergeCells(1,1,1,3); rH1.height = 38;
-    rH1.getCell(1).style = { font:{name:"Calibri",size:20,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:DPURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
-
-    wsH.addRow([]); // отступ
-
-    const steps = [
-      ["1.", "Маркетинг анализирует тренды", "AI-система мониторит мировые тренды в FMCG, отбирает позиции актуальные для Казахстана и передаёт категорийным менеджерам"],
-      ["2.", "КМ принимает решение", "Категорийный менеджер изучает список, выбирает позиции для ввода и ставит отметку в колонке «Решение КМ» на листе Позиции"],
-      ["3.", "Байер находит поставщика", "По одобренным позициям ищем поставщика, договариваемся об условиях, завозим первую тестовую партию"],
-      ["4.", "Выкладка на тестовый торец", "Товар размещается на торце стеллажа рядом с основной категорией: Формат 3 → 20-25 SKU, Формат 2 → 10-15 SKU, Формат 1 → 5-8 SKU"],
-      ["5.", "8 недель теста", "Замеряем продажи. Хорошие результаты → переводим в постоянный ассортимент. Слабые → убираем и фиксируем причину"],
-      ["6.", "Ротация зоны", "Раз в месяц 2-3 новые тренды заходят на торец, 1-2 «выпускника» переезжают в основную категорию или выводятся"],
-    ];
-
-    steps.forEach((step, i) => {
-      wsH.addRow([]);
-      const sr = wsH.addRow(["", step[0] + " " + step[1], step[2]]);
-      sr.height = 48;
-      sr.getCell("B").style = { font:{name:"Calibri",size:12,bold:true,color:{argb:PURPLE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
-      sr.getCell("C").style = { font:{name:"Calibri",size:11,color:{argb:"FF334155"}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:i%2===0?LGRAY:WHITE}}, alignment:{vertical:"middle",wrapText:true,horizontal:"left"} };
-    });
-
-    wsH.addRow([]);
-    const note = wsH.addRow(["", "💬 Вопросы и предложения", "Обращайтесь в маркетинг. Трекер обновляется еженедельно — новые тренды добавляются автоматически."]);
-    note.height = 36;
-    note.getCell("B").style = { font:{name:"Calibri",size:11,bold:true,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",horizontal:"left",indent:1} };
-    note.getCell("C").style = { font:{name:"Calibri",size:11,color:{argb:WHITE}}, fill:{type:"pattern",pattern:"solid",fgColor:{argb:PURPLE}}, alignment:{vertical:"middle",wrapText:true} };
+    // 3й лист убран — содержимое перенесено в Резюме
 
     // Скачиваем
     const buffer = await wb.xlsx.writeBuffer();
@@ -1515,7 +1450,7 @@ export default function App() {
 
       {/* KPI-карточки */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
-        {[["Товаров",filtered.length,"#22c55e"],["🔥 Горячих",filtered.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",filtered.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",filtered.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",filtered.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",filtered.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
+        {[["Товаров",filtered.length,"#22c55e"],["Горячих",filtered.filter(t=>t.status?.includes("Горячий")).length,"#ff4d6d"],["🟢 К закупке",filtered.filter(t=>t.procurement_ready==="🟢 Готов к закупке").length,"#22c55e"],["🔴 Недоступно",filtered.filter(t=>t.procurement_ready==="🔴 Недоступно в КЗ").length,"#ff4d6d"],["✨ Новинок",filtered.filter(t=>t.status?.includes("Новинка")).length,"#fbbf24"],["📦 В ассорт.",filtered.filter(t=>t.kanban==="done").length,"#7c3aed"]].map(([l,v,c])=>(
           <div key={l} style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:"12px 14px"}}>
             <div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>{l}</div>
             <div style={{fontWeight:800,fontSize:20,color:c}}>{v}</div>
