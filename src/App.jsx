@@ -1560,16 +1560,6 @@ ${list}
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
 
-          {/* Кнопка заполнения типов продуктов */}
-          {trends.some(t => !t.product_type || t.product_type.trim() === "") && (
-            <button
-              onClick={fillProductTypes}
-              disabled={fillingTypes}
-              style={{background:"#ffffff",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingTypes?"not-allowed":"pointer",color:"#b45309",display:"flex",alignItems:"center",gap:6,opacity:fillingTypes?0.7:1}}>
-              {fillingTypes ? `⏳ ${fillProgress}` : `🏷 Заполнить типы (${trends.filter(t=>!t.product_type||t.product_type.trim()==="").length})`}
-            </button>
-          )}
-
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
               style={{background:"#ffffff",border:"1px solid #7c3aed",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#7c3aed",display:"flex",alignItems:"center",gap:6}}>
