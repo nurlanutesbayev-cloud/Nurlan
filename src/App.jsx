@@ -1099,6 +1099,65 @@ ${list}
     setAnalysisItem(item); setAnalysisLoading(true); setAnalysisData(null); setAnalysisModal(true);
     try {
       const todayStr = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+      const brand = item.name.split(" ")[0];
+      const category = item.category;
+
+      // ── Шаг 1: ищем реального дистрибьютора в КЗ/РФ ──────────────────────
+      setAnalysisData({_loading_step: "🔍 Ищу дистрибьютора в Казахстане и России..."});
+      let distributorInfo = "";
+      let tnvedInfo = "";
+      try {
+        const apiKey = import.meta.env.VITE_ANTHROPIC_KEY;
+
+        // Поиск дистрибьютора
+        const distResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": apiKey,
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [{ role: "user", content:
+              `Найди официального дистрибьютора "${item.name}" (бренд: ${brand}) в Казахстане или России. Ищи: "${brand} дистрибьютор Казахстан", "${brand} official distributor Kazakhstan", "${brand} поставщик КЗ". Верни только: название компании, сайт, контакт. 2-3 предложения максимум.`
+            }]
+          })
+        });
+        const distData = await distResp.json();
+        distributorInfo = (distData.content||[]).filter(b=>b.type==="text").map(b=>b.text).join(" ").slice(0, 500);
+      } catch(e) { console.error("Dist search error:", e.message); }
+
+      // ── Шаг 2: ищем ТН ВЭД и пошлину ────────────────────────────────────
+      setAnalysisData({_loading_step: "📋 Ищу код ТН ВЭД и таможенные пошлины..."});
+      try {
+        const apiKey = import.meta.env.VITE_ANTHROPIC_KEY;
+        const tnvedResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": apiKey,
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 500,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [{ role: "user", content:
+              `Найди код ТН ВЭД ЕАЭС для "${item.name}" категория "${category}". Ищи в базе ТН ВЭД ЕАЭС. Также укажи ставку импортной пошлины для Казахстана (ЕАЭС) и НДС 12%. Ответ: код ТН ВЭД, пошлина %, НДС %. Только цифры и код.`
+            }]
+          })
+        });
+        const tnvedData = await tnvedResp.json();
+        tnvedInfo = (tnvedData.content||[]).filter(b=>b.type==="text").map(b=>b.text).join(" ").slice(0, 300);
+      } catch(e) { console.error("TNVED search error:", e.message); }
+
+      // ── Шаг 3: основной анализ с найденными данными ───────────────────────
+      setAnalysisData({_loading_step: "🧠 Генерирую полный анализ..."});
       const text = await callAI(`Ты FMCG-эксперт по Казахстану. Проведи глубокий анализ позиции для байера супермаркета Аян.
 
 СЕГОДНЯШНЯЯ ДАТА: ${todayStr}. Все сроки от этой даты в будущее.
@@ -1115,6 +1174,10 @@ ${list}
 АСТАНА: Magnum 78 точек (лидер), Fix Price 67, Small 63, My Mart 41, Galmart 8.
 ТЕМИРТАУ: Fix Price 13 точек (главный конкурент), Magnum — НЕТ, Small — НЕТ.
 
+НАЙДЕННЫЕ ДАННЫЕ ИЗ РЕАЛЬНОГО ПОИСКА (используй их в приоритете):
+Дистрибьютор (из поиска): ${distributorInfo || "не найден — укажи наиболее вероятный вариант"}
+ТН ВЭД и пошлина (из поиска): ${tnvedInfo || "не найдено — укажи типовой код для категории"}
+
 Товар: ${item.name} (${item.subname||""}), категория: ${item.category}, регион: ${item.region}.
 
 Верни JSON объект без markdown:
@@ -1123,7 +1186,23 @@ ${list}
   "trend_reason": "Почему тренд сейчас, цифры, культурный контекст",
   "viral_formats": ["3-4 конкретных формата контента"],
   "skus": [{"name":"SKU с весом","pack":"упаковка","price_rf":"цена в рублях","price_kz":"прогноз в тенге"}],
-  "supply_chain": {"manufacturer":"производитель и страна","distributor":"контакт или путь поставки","route":"маршрут","difficulty":"🟢/🟡/🔴","min_order":"минимальная партия"},
+  "supply_chain": {
+    "manufacturer": "производитель, страна, завод если известен",
+    "distributor": "используй данные из поиска выше. Укажи сайт и контакт если найден",
+    "distributor_verified": true или false — найден ли через реальный поиск,
+    "route": "конкретный маршрут доставки до Астаны/Карагандасайт",
+    "delivery_days": "срок поставки от заказа до склада в Астане",
+    "payment_terms": "условия оплаты",
+    "tnved": "код ТН ВЭД — используй данные из поиска выше",
+    "tnved_verified": true или false — найден ли через реальный поиск,
+    "customs_duty": "пошлина % + НДС 12% = итого надбавка к FOB",
+    "shelf_life": "срок годности и остаток при поставке",
+    "storage": "условия хранения",
+    "pallet": "единиц в коробке × коробок на паллете",
+    "exclusivity": "есть ли эксклюзив или можно зайти напрямую",
+    "difficulty": "🟢 Низкая / 🟡 Средняя / 🔴 Высокая",
+    "min_order": "минимальная тестовая партия и стоимость FOB"
+  },
   "kz_competitors": [{"name":"магазин/сеть","status":"что есть","gap":"окно возможностей"}],
   "ayan_strategy": {"priority":"🔴/🟡/🟢","test_quantity":"тестовая партия","launch_channel":"конкретные магазины из списка","positioning":"как подать товар"}
 }`);
@@ -1865,8 +1944,11 @@ ${list}
             </div>
             {analysisLoading && (
               <div style={{textAlign:"center",padding:40}}>
-                <div style={{fontSize:32,marginBottom:12}}>⏳</div>
-                <div style={{fontSize:13,color:"#64748b"}}>Генерирую глубокий анализ...</div>
+                <div style={{fontSize:28,marginBottom:12}}>⏳</div>
+                <div style={{fontSize:13,color:"#64748b"}}>
+                  {analysisData?._loading_step || "Запускаю анализ..."}
+                </div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>Шаг 1/3: поиск дистрибьютора → Шаг 2/3: ТН ВЭД → Шаг 3/3: полный анализ</div>
               </div>
             )}
             {!analysisLoading && analysisData && analysisData.error && (
@@ -1913,12 +1995,39 @@ ${list}
                   <div style={{background:"#f1f5f9",border:"1px solid #2a2a3d",borderRadius:10,padding:14}}>
                     <div style={{fontSize:12,fontWeight:700,color:"#22c55e",marginBottom:10}}>🚚 ЦЕПОЧКА ПОСТАВКИ</div>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,fontSize:12}}>
-                      {[["Производитель",analysisData.supply_chain.manufacturer],["Дистрибьютор",analysisData.supply_chain.distributor],["Маршрут",analysisData.supply_chain.route],["Сложность",analysisData.supply_chain.difficulty]].map(([l,v])=>(
-                        <div key={l}><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>{l}</div><div style={{color:"#334155"}}>{v}</div></div>
+                      {[
+                        ["Производитель",  analysisData.supply_chain.manufacturer, false],
+                        ["Дистрибьютор",   analysisData.supply_chain.distributor,  analysisData.supply_chain.distributor_verified],
+                        ["Маршрут",        analysisData.supply_chain.route, false],
+                        ["Срок поставки",  analysisData.supply_chain.delivery_days, false],
+                        ["Условия оплаты", analysisData.supply_chain.payment_terms, false],
+                        ["Код ТН ВЭД",     analysisData.supply_chain.tnved,         analysisData.supply_chain.tnved_verified],
+                        ["Пошлина + НДС",  analysisData.supply_chain.customs_duty,  analysisData.supply_chain.tnved_verified],
+                        ["Срок годности",  analysisData.supply_chain.shelf_life, false],
+                        ["Хранение",       analysisData.supply_chain.storage, false],
+                        ["Паллет",         analysisData.supply_chain.pallet, false],
+                        ["Эксклюзивность", analysisData.supply_chain.exclusivity, false],
+                        ["Сложность",      analysisData.supply_chain.difficulty, false],
+                      ].filter(([,v])=>v).map(([l,v,verified])=>(
+                        <div key={l}>
+                          <div style={{display:"flex",alignItems:"center",gap:4,color:"#64748b",fontSize:10,marginBottom:2,textTransform:"uppercase",letterSpacing:"0.04em"}}>
+                            {l}
+                            {verified===true && <span title="Верифицировано через поиск" style={{color:"#22c55e",fontSize:11}}>✓</span>}
+                            {verified===false && <span title="Оценка AI — требует проверки" style={{color:"#f59e0b",fontSize:10}}>~</span>}
+                          </div>
+                          <div style={{color:"#334155",fontSize:11,lineHeight:1.4}}>{v}</div>
+                        </div>
                       ))}
                       {analysisData.supply_chain.min_order && (
-                        <div style={{gridColumn:"1/-1"}}><div style={{color:"#64748b",fontSize:10,marginBottom:2}}>Минимальная партия</div><div style={{color:"#fbbf24",fontWeight:600}}>{analysisData.supply_chain.min_order}</div></div>
+                        <div style={{gridColumn:"1/-1",background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.4)",borderRadius:6,padding:"8px 10px"}}>
+                          <div style={{color:"#64748b",fontSize:10,marginBottom:2,textTransform:"uppercase",letterSpacing:"0.04em"}}>Минимальная партия (тест)</div>
+                          <div style={{color:"#fbbf24",fontWeight:700,fontSize:12}}>{analysisData.supply_chain.min_order}</div>
+                        </div>
                       )}
+                      <div style={{gridColumn:"1/-1",borderTop:"1px solid #e2e8f0",paddingTop:8,fontSize:10,color:"#94a3b8"}}>
+                        <span style={{color:"#22c55e"}}>✓ верифицировано</span> через реальный поиск &nbsp;·&nbsp;
+                        <span style={{color:"#f59e0b"}}>~ оценка AI</span> — требует проверки байером
+                      </div>
                     </div>
                   </div>
                 )}
