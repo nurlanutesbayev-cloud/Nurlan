@@ -1468,7 +1468,7 @@ ${list}
         supplyClean||"—",
         "← Ваше решение",
       ]);
-      dr.height = 56;
+      // height не задаём — Excel растянет сам по содержимому при wrapText:true
 
       // Базовый стиль всех ячеек
       for (let cn = 1; cn <= 10; cn++) {
