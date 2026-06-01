@@ -1407,7 +1407,7 @@ ${list}
       {header:"Товар",       width:36},
       {header:"Категория",   width:16},
       {header:"Почему тренд",width:38},
-      {header:"Цена ₸",     width:14},
+      {header:"Прогноз цены ₸", width:16},
       {header:"Конкуренты",  width:22},
       {header:"Рос. рынок",  width:16},
       {header:"КЗ рынок",    width:16},
@@ -1452,7 +1452,7 @@ ${list}
       const statusClean = (t.status||"").replace(/[🔥✨📈✅]/g,"").trim();
       const supplyClean = (t.supply_source||"").replace(/[\u{1F1E6}-\u{1F1FF}]/gu,"").trim();
       const rowBg = idx%2===0 ? WHITE : LGRAY;
-      const isTop = idx < 3;
+      const isTop = false; // топ-3 выделение убрано
       const sc = Object.entries(STATUS_COLORS).find(([k])=>statusClean.includes(k));
       const nameColor = sc ? sc[1] : "FF0F172A";
 
@@ -1475,7 +1475,7 @@ ${list}
         const cell = dr.getCell(cn);
         cell.style = {
           font:      { name:"Calibri", size:10 },
-          fill:      { type:"pattern", pattern:"solid", fgColor:{argb: isTop ? "FFFFF8FF" : rowBg} },
+          fill:      { type:"pattern", pattern:"solid", fgColor:{argb: rowBg} },
           alignment: { vertical:"middle", wrapText:true, horizontal: cn===1 ? "center" : "left" },
           border:    { bottom:{style:"thin",color:{argb:BORDER_COLOR}} },
         };
@@ -1483,7 +1483,7 @@ ${list}
 
       // Колонка 2 — richText: Название / Тип продукта / Бренд
       const nameCell = dr.getCell(2);
-      nameCell.style = { ...nameCell.style, border:{...nameCell.style.border, left: isTop ? {style:"medium",color:{argb:PURPLE}} : undefined} };
+      nameCell.style = { ...nameCell.style, border:{...nameCell.style.border} };
       nameCell.value = {
         richText: [
           { text: (t.name||"") + "\n",
