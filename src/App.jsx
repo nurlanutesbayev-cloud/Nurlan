@@ -266,7 +266,10 @@ ${productList}
 Конкуренты для проверки: Arbuz.kz, Корзина, Fix Price, Magnum
 
 Верни ТОЛЬКО JSON массив без markdown, ровно ${items.length} объектов в том же порядке:
-[{"name":"точное название товара","competitors":["Arbuz.kz"]}]`);
+[{"name":"точное название товара","competitors":["Arbuz.kz"],"kz_verified":true,"kz_status":"Появляется","kz_detail":"Найдено на Arbuz.kz — онлайн доставка, офлайн отсутствует"}]
+
+Для kz_status используй: "Активно продаётся" (найден в 3+ сетях), "Появляется" (найден в 1-2 сетях онлайн), "Редко встречается" (найден единично), "Нет в продаже" (нигде не найден).
+Для kz_detail — конкретно где найдено (Arbuz.kz, Fix Price онлайн и т.д.) или "Не найдено ни в одной сети КЗ".`);
 
     const verified = parseJsonArray(text);
     if (!verified || verified.length === 0) return items;
@@ -278,7 +281,15 @@ ${productList}
         (r.name || "").toLowerCase().includes(item.name.toLowerCase().split(" ")[0])
       ) || verified[i];
       if (v && Array.isArray(v.competitors)) {
-        return { ...item, competitors: v.competitors };
+        return {
+          ...item,
+          competitors: v.competitors,
+          // Обновляем kz_status и kz_detail реальными данными из поиска
+          ...(v.kz_verified ? {
+            kz_status: v.kz_status || item.kz_status,
+            kz_detail: v.kz_detail || item.kz_detail,
+          } : {})
+        };
       }
       return { ...item, competitors: [] };
     });
