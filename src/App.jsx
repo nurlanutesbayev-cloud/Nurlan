@@ -1072,7 +1072,7 @@ ${list}
     alert(`Готово! Заполнено причин: ${filled} из ${missing.length}`);
   };
 
-
+  const generatePost = async (item) => {
     setInstaItem(item); setInstaLoading(true); setInstaPosts(null); setContentModal(true);
     try {
       const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
