@@ -1203,7 +1203,7 @@ ${list}
     "difficulty": "🟢 Низкая / 🟡 Средняя / 🔴 Высокая",
     "min_order": "минимальная тестовая партия и стоимость FOB"
   },
-  "kz_competitors": [{"name":"магазин/сеть","status":"что есть","gap":"окно возможностей"}],
+  "kz_competitors": [{"name":"магазин/сеть (город, кол-во точек)","price":"цена у конкурента если есть, иначе —","status":"что конкретно есть в ассортименте","gap":"конкретное окно — какие магазины Аяна и что именно запустить"}],
   "ayan_strategy": {"priority":"🔴/🟡/🟢","test_quantity":"тестовая партия","launch_channel":"конкретные магазины из списка","positioning":"как подать товар"}
 }`);
       const cleaned = text.replace(/^[^{]*/, "").replace(/[^}]*$/, "");
@@ -2037,9 +2037,14 @@ ${list}
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       {analysisData.kz_competitors.map((c,i)=>(
                         <div key={i} style={{borderLeft:"2px solid #7c3aed",paddingLeft:10}}>
-                          <div style={{fontSize:13,fontWeight:600,color:"#0f172a"}}>{c.name}</div>
-                          <div style={{fontSize:11,color:"#64748b",marginTop:2}}>Статус: {c.status}</div>
-                          <div style={{fontSize:11,color:"#fbbf24",marginTop:2}}>💡 Окно: {c.gap}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:2}}>
+                            <div style={{fontSize:13,fontWeight:600,color:"#0f172a"}}>{c.name}</div>
+                            {c.price && c.price !== "—" && (
+                              <span style={{fontSize:11,fontWeight:700,color:"#fbbf24",background:"rgba(251,191,36,0.12)",padding:"1px 8px",borderRadius:4}}>{c.price}</span>
+                            )}
+                          </div>
+                          <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{c.status}</div>
+                          <div style={{fontSize:11,color:"#fbbf24",marginTop:2}}>💡 {c.gap}</div>
                         </div>
                       ))}
                     </div>
