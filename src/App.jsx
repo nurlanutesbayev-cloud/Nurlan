@@ -1156,7 +1156,46 @@ ${list}
         tnvedInfo = (tnvedData.content||[]).filter(b=>b.type==="text").map(b=>b.text).join(" ").slice(0, 300);
       } catch(e) { console.error("TNVED search error:", e.message); }
 
-      // ── Шаг 3: основной анализ с найденными данными ───────────────────────
+      // ── Шаг 3: поиск у конкурентов — Arbuz, Magnum (Kaspi), Корзина ───────
+      setAnalysisData({_loading_step: "🏪 Проверяю наличие у конкурентов в КЗ..."});
+      let competitorInfo = "";
+      try {
+        const apiKey = import.meta.env.VITE_ANTHROPIC_KEY;
+        const compResp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "anthropic-version": "2023-06-01",
+            "x-api-key": apiKey,
+            "anthropic-dangerous-direct-browser-access": "true",
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1500,
+            tools: [{ type: "web_search_20250305", name: "web_search" }],
+            messages: [{ role: "user", content:
+              `Проверь наличие товара "${item.name}" (бренд: ${brand}) у казахстанских ретейлеров. Выполни поиск по каждому:
+1. site:arbuz.kz "${brand}" — есть ли товар на Arbuz.kz?
+2. Magnum Казахстан "${brand}" — есть ли в Magnum?
+3. site:korzinavdom.kz "${brand}" — есть ли в Корзина?
+
+Для каждого ретейлера укажи:
+- Есть / Нет в наличии
+- Цену если нашёл
+- Конкретное название SKU если нашёл
+
+Формат ответа:
+Arbuz.kz: [есть/нет] [цена если есть] [название SKU]
+Magnum: [есть/нет] [цена если есть]
+Корзина: [есть/нет] [цена если есть]`
+            }]
+          })
+        });
+        const compData = await compResp.json();
+        competitorInfo = (compData.content||[]).filter(b=>b.type==="text").map(b=>b.text).join(" ").slice(0, 800);
+      } catch(e) { console.error("Competitor search error:", e.message); }
+
+      // ── Шаг 4: основной анализ с найденными данными ───────────────────────
       setAnalysisData({_loading_step: "🧠 Генерирую полный анализ..."});
       const text = await callAI(`Ты FMCG-эксперт по Казахстану. Проведи глубокий анализ позиции для байера супермаркета Аян.
 
@@ -1177,6 +1216,9 @@ ${list}
 НАЙДЕННЫЕ ДАННЫЕ ИЗ РЕАЛЬНОГО ПОИСКА (используй их в приоритете):
 Дистрибьютор (из поиска): ${distributorInfo || "не найден — укажи наиболее вероятный вариант"}
 ТН ВЭД и пошлина (из поиска): ${tnvedInfo || "не найдено — укажи типовой код для категории"}
+Наличие у конкурентов (из реального поиска по сайтам): ${competitorInfo || "поиск не дал результатов — используй свои данные"}
+
+ВАЖНО ДЛЯ КОНКУРЕНТОВ: используй данные из поиска выше как основу. Если поиск показал что товар ЕСТЬ у Arbuz — укажи это с реальной ценой. Если НЕТ — укажи "отсутствует". Не выдумывай наличие если поиск ничего не нашёл.
 
 Товар: ${item.name} (${item.subname||""}), категория: ${item.category}, регион: ${item.region}.
 
@@ -1948,7 +1990,7 @@ ${list}
                 <div style={{fontSize:13,color:"#64748b"}}>
                   {analysisData?._loading_step || "Запускаю анализ..."}
                 </div>
-                <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>Шаг 1/3: поиск дистрибьютора → Шаг 2/3: ТН ВЭД → Шаг 3/3: полный анализ</div>
+                <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>Шаг 1/4: дистрибьютор → Шаг 2/4: ТН ВЭД → Шаг 3/4: конкуренты → Шаг 4/4: анализ</div>
               </div>
             )}
             {!analysisLoading && analysisData && analysisData.error && (
