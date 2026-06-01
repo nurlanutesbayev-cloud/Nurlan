@@ -1629,12 +1629,6 @@ ${list}
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
 
-          {/* Разовая кнопка заполнения причин трендов */}
-          <button onClick={fillTrendReasons} disabled={fillingReasons}
-            style={{background:"#ffffff",border:"1px solid #3b82f6",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingReasons?"not-allowed":"pointer",color:"#1d4ed8",display:"flex",alignItems:"center",gap:6,opacity:fillingReasons?0.7:1}}>
-            {fillingReasons ? `⏳ ${fillReasonsProgress}` : `📊 Причины трендов`}
-          </button>
-
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
               style={{background:"#ffffff",border:"1px solid #7c3aed",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#7c3aed",display:"flex",alignItems:"center",gap:6}}>
