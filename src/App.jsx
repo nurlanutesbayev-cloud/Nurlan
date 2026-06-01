@@ -1630,12 +1630,10 @@ ${list}
           </button>
 
           {/* Разовая кнопка заполнения причин трендов */}
-          {trends.some(t => !t.trend_reason || t.trend_reason.trim() === "") && (
-            <button onClick={fillTrendReasons} disabled={fillingReasons}
-              style={{background:"#ffffff",border:"1px solid #3b82f6",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingReasons?"not-allowed":"pointer",color:"#1d4ed8",display:"flex",alignItems:"center",gap:6,opacity:fillingReasons?0.7:1}}>
-              {fillingReasons ? `⏳ ${fillReasonsProgress}` : `📊 Заполнить причины (${trends.filter(t=>!t.trend_reason||t.trend_reason.trim()==="").length})`}
-            </button>
-          )}
+          <button onClick={fillTrendReasons} disabled={fillingReasons}
+            style={{background:"#ffffff",border:"1px solid #3b82f6",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:fillingReasons?"not-allowed":"pointer",color:"#1d4ed8",display:"flex",alignItems:"center",gap:6,opacity:fillingReasons?0.7:1}}>
+            {fillingReasons ? `⏳ ${fillReasonsProgress}` : `📊 Причины трендов`}
+          </button>
 
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
