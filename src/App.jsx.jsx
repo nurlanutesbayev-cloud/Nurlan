@@ -740,6 +740,277 @@ function HistoryModal({ filter, currentTrends, onRestore, onClose }) {
   );
 }
 
+// ── Компонент: Анализ ассортимента ────────────────────────────────────────────
+function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoading }) {
+  const SUPABASE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdmJqcGp0b2h0a3VsbWJicG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjg4NzgsImV4cCI6MjA5NDgwNDg3OH0.mLrrZahUIC4Eko56L-PJFfkEVE6e0iDTK_Ipuf4KKVM";
+
+  const isAll = filter === "Все";
+  const cats = [...new Set(assortment.map(a => a.category))];
+
+  // Для режима конкретной категории
+  const catData = isAll ? assortment : assortment.filter(a => a.category === filter);
+
+  // Группируем по сессиям
+  const sessions = {};
+  catData.forEach(item => {
+    const sid = item.session_id || "default";
+    if (!sessions[sid]) sessions[sid] = { id: sid, date: item.session_date || item.uploaded_at, period: item.period, items: [] };
+    sessions[sid].items.push(item);
+  });
+  const sessionList = Object.values(sessions).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const latestSession = sessionList[0];
+  const firstSession = sessionList[sessionList.length - 1];
+  const hasHistory = sessionList.length > 1;
+
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString("ru-KZ", {day:"numeric", month:"long", year:"numeric"}) : "—";
+  const fmtRev = (r) => r >= 1000000 ? `${(r/1000000).toFixed(1)}M ₸` : `${(r/1000).toFixed(0)}K ₸`;
+
+  const SessionKPI = ({ session }) => {
+    const items = session.items;
+    const totalRev = items.reduce((s,a) => s+(a.revenue||0), 0);
+    const totalQty = items.reduce((s,a) => s+(a.qty||0), 0);
+    const negative = items.filter(a => a.margin !== null && a.margin < 0);
+    const slow = items.filter(a => a.qty < 10);
+    const top5 = [...items].sort((a,b) => (b.revenue||0)-(a.revenue||0)).slice(0, 5);
+
+    return (
+      <div>
+        {/* KPI */}
+        <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8, marginBottom:14}}>
+          {[
+            ["SKU", items.length, "#7c3aed"],
+            ["Оборот", fmtRev(totalRev), "#0f172a"],
+            ["Продано шт", totalQty.toLocaleString("ru"), "#16a34a"],
+            ["Убыточных", negative.length, "#ff4d6d"],
+            ["Медленных <10шт", slow.length, "#f59e0b"],
+          ].map(([l,v,c]) => (
+            <div key={l} style={{background:"#f8fafc", borderRadius:8, padding:"8px 10px", border:"1px solid #f0f0f0"}}>
+              <div style={{fontSize:9, color:"#94a3b8", marginBottom:2, textTransform:"uppercase"}}>{l}</div>
+              <div style={{fontSize:15, fontWeight:700, color:c}}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Топ-5 */}
+        <div style={{fontSize:11, fontWeight:700, color:"#64748b", marginBottom:6, textTransform:"uppercase"}}>Топ-5 по обороту</div>
+        <div style={{display:"flex", flexDirection:"column", gap:3, marginBottom:12}}>
+          {top5.map((item,i) => (
+            <div key={i} style={{display:"flex", alignItems:"center", gap:8, padding:"5px 8px", background:i%2===0?"#f8fafc":"#fff", borderRadius:6}}>
+              <span style={{fontSize:10, color:"#94a3b8", width:16, textAlign:"center"}}>{i+1}</span>
+              <span style={{flex:1, fontSize:11, color:"#334155"}}>{item.name}</span>
+              <span style={{fontSize:11, fontWeight:600, color:"#7c3aed"}}>{(item.qty||0).toLocaleString("ru")} шт</span>
+              {item.avg_price && <span style={{fontSize:10, color:"#94a3b8"}}>{item.avg_price.toLocaleString("ru")} ₸/шт</span>}
+              <span style={{fontSize:11, fontWeight:600, color:"#0f172a"}}>{fmtRev(item.revenue||0)}</span>
+              {item.margin !== null && <span style={{fontSize:10, fontWeight:700, color:item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b", minWidth:50, textAlign:"right"}}>{item.margin}%</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Убыточные */}
+        {negative.length > 0 && (
+          <div style={{background:"#fff0f4", border:"1px solid #fca5a5", borderRadius:8, padding:"10px 12px", marginBottom:8}}>
+            <div style={{fontSize:11, fontWeight:700, color:"#ff4d6d", marginBottom:4}}>🔴 Убыточные SKU — {negative.length} позиций</div>
+            <div style={{fontSize:10, color:"#94a3b8", marginBottom:6}}>Продаёте ниже себестоимости — пересмотреть цену или вывести</div>
+            {[...negative].sort((a,b) => a.margin-b.margin).map((item,i) => (
+              <div key={i} style={{display:"flex", gap:8, padding:"3px 0", borderBottom:"0.5px solid #fecaca"}}>
+                <span style={{flex:1, fontSize:11, color:"#991b1b"}}>{item.name}</span>
+                <span style={{fontSize:11, fontWeight:700, color:"#ff4d6d", minWidth:50, textAlign:"right"}}>{item.margin}%</span>
+                <span style={{fontSize:10, color:"#94a3b8", minWidth:65, textAlign:"right"}}>{fmtRev(item.revenue||0)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Медленные */}
+        {slow.length > 0 && (
+          <div style={{background:"#fffbeb", border:"1px solid #fde68a", borderRadius:8, padding:"10px 12px"}}>
+            <div style={{fontSize:11, fontWeight:700, color:"#92400e", marginBottom:4}}>🟡 Медленные SKU — {slow.length} позиций (менее 10 шт за период)</div>
+            <div style={{fontSize:10, color:"#94a3b8", marginBottom:6}}>Кандидаты на вывод или замену трендовыми позициями</div>
+            {[...slow].sort((a,b) => a.qty-b.qty).map((item,i) => (
+              <div key={i} style={{display:"flex", gap:8, padding:"3px 0", borderBottom:"0.5px solid #fde68a"}}>
+                <span style={{flex:1, fontSize:11, color:"#92400e"}}>{item.name}</span>
+                <span style={{fontSize:11, fontWeight:700, color:"#f59e0b", minWidth:40, textAlign:"right"}}>{item.qty} шт</span>
+                <span style={{fontSize:10, color:"#94a3b8", minWidth:65, textAlign:"right"}}>{fmtRev(item.revenue||0)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const DynamicBlock = ({ first, latest }) => {
+    const fRev = first.items.reduce((s,a) => s+(a.revenue||0), 0);
+    const lRev = latest.items.reduce((s,a) => s+(a.revenue||0), 0);
+    const fSku = first.items.length;
+    const lSku = latest.items.length;
+    const fNeg = first.items.filter(a => a.margin !== null && a.margin < 0).length;
+    const lNeg = latest.items.filter(a => a.margin !== null && a.margin < 0).length;
+    const fSlow = first.items.filter(a => a.qty < 10).length;
+    const lSlow = latest.items.filter(a => a.qty < 10).length;
+
+    const diff = (a, b, invert=false) => {
+      const d = b - a;
+      const positive = invert ? d < 0 : d > 0;
+      const color = d === 0 ? "#64748b" : positive ? "#16a34a" : "#ff4d6d";
+      const sign = d > 0 ? "+" : "";
+      return <span style={{color, fontWeight:700, fontSize:11}}>{sign}{typeof a === "number" && typeof b === "number" && Math.abs(d) > 1000 ? fmtRev(d) : d}</span>;
+    };
+
+    // Новые и выведенные SKU
+    const firstNames = new Set(first.items.map(a => a.name));
+    const latestNames = new Set(latest.items.map(a => a.name));
+    const newSku = latest.items.filter(a => !firstNames.has(a.name)).slice(0, 5);
+    const removedSku = first.items.filter(a => !latestNames.has(a.name)).slice(0, 5);
+
+    return (
+      <div style={{background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:10, padding:14, marginBottom:12}}>
+        <div style={{fontSize:12, fontWeight:700, color:"#16a34a", marginBottom:10}}>
+          📈 ДИНАМИКА: {fmtDate(first.date)} → {fmtDate(latest.date)}
+        </div>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:12}}>
+          {[
+            ["SKU", fSku, lSku, false],
+            ["Оборот", fRev, lRev, false],
+            ["Убыточных", fNeg, lNeg, true],
+            ["Медленных", fSlow, lSlow, true],
+          ].map(([l, fv, lv, inv]) => (
+            <div key={l} style={{background:"#fff", borderRadius:8, padding:"8px 10px", border:"1px solid #d1fae5"}}>
+              <div style={{fontSize:9, color:"#94a3b8", marginBottom:2, textTransform:"uppercase"}}>{l}</div>
+              <div style={{fontSize:13, fontWeight:700, color:"#0f172a"}}>
+                {l === "Оборот" ? fmtRev(lv) : lv}
+              </div>
+              <div style={{fontSize:10, color:"#64748b"}}>
+                было: {l === "Оборот" ? fmtRev(fv) : fv} · {diff(fv, lv, inv)}
+              </div>
+            </div>
+          ))}
+        </div>
+        {newSku.length > 0 && (
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10, fontWeight:700, color:"#16a34a", marginBottom:4}}>🆕 Новые SKU ({latest.items.filter(a=>!firstNames.has(a.name)).length})</div>
+            {newSku.map((item,i) => <div key={i} style={{fontSize:11, color:"#15803d", padding:"2px 0"}}>{item.name}</div>)}
+            {latest.items.filter(a=>!firstNames.has(a.name)).length > 5 && <div style={{fontSize:10, color:"#94a3b8"}}>...и ещё {latest.items.filter(a=>!firstNames.has(a.name)).length - 5}</div>}
+          </div>
+        )}
+        {removedSku.length > 0 && (
+          <div>
+            <div style={{fontSize:10, fontWeight:700, color:"#ff4d6d", marginBottom:4}}>🗑 Выведено SKU ({first.items.filter(a=>!latestNames.has(a.name)).length})</div>
+            {removedSku.map((item,i) => <div key={i} style={{fontSize:11, color:"#991b1b", padding:"2px 0"}}>{item.name}</div>)}
+            {first.items.filter(a=>!latestNames.has(a.name)).length > 5 && <div style={{fontSize:10, color:"#94a3b8"}}>...и ещё {first.items.filter(a=>!latestNames.has(a.name)).length - 5}</div>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.55)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}
+      onClick={e => { if(e.target===e.currentTarget) onClose(); }}>
+      <div style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,width:"100%",maxWidth:920,boxShadow:"0 24px 64px rgba(15,23,42,0.14)",overflow:"hidden",marginBottom:24}}>
+
+        {/* Шапка */}
+        <div style={{padding:"16px 20px",background:"#fffbeb",borderBottom:"1px solid #fde68a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:2}}>📦 {isAll ? "АНАЛИЗ ДЕЙСТВУЮЩЕГО АССОРТИМЕНТА АЯН" : `АССОРТИМЕНТ · ${filter}`}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"#0f172a"}}>
+              {isAll ? `Загружено категорий: ${cats.length}` : `${latestSession?.items.length || 0} SKU · ${sessionList.length} ${sessionList.length===1?"загрузка":"загрузок"}`}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {!isAll && (
+              <label style={{background:"#16a34a",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:600,fontSize:12,cursor:assortmentLoading?"not-allowed":"pointer",color:"#fff",display:"flex",alignItems:"center",gap:6,opacity:assortmentLoading?0.7:1}}>
+                {assortmentLoading ? "⏳ Загружаю..." : "📂 Загрузить новый файл"}
+                <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0]) onUpload(e.target.files[0]); e.target.value="";}} disabled={assortmentLoading}/>
+              </label>
+            )}
+            <button onClick={onClose} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#64748b",fontSize:13,fontWeight:700}}>✕</button>
+          </div>
+        </div>
+
+        {/* Режим "Все" — сводка по категориям */}
+        {isAll && (
+          <div style={{padding:20}}>
+            <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+              {cats.map(cat => {
+                const catItems = assortment.filter(a=>a.category===cat);
+                const sessions = [...new Set(catItems.map(a=>a.session_id))];
+                const latestItems = catItems.filter(a=>a.session_id===sessions[0] || !a.session_id);
+                const latestDate = catItems[0]?.session_date || catItems[0]?.uploaded_at;
+                const period = catItems[0]?.period;
+                const totalRev = latestItems.reduce((s,a)=>s+(a.revenue||0),0);
+                return (
+                  <div key={cat} style={{background:"#f8fafc",border:"1px solid #fde68a",borderRadius:10,padding:"12px 16px",minWidth:200,flex:"1 1 200px"}}>
+                    <div style={{fontWeight:700,color:"#92400e",fontSize:13,marginBottom:4}}>{cat}</div>
+                    <div style={{fontSize:11,color:"#64748b",marginBottom:2}}>📦 {latestItems.length} SKU · {sessions.length} загр.</div>
+                    <div style={{fontSize:11,color:"#0f172a",fontWeight:600,marginBottom:2}}>{fmtRev(totalRev)}</div>
+                    {period && <div style={{fontSize:10,color:"#94a3b8"}}>📅 {period}</div>}
+                    {latestDate && <div style={{fontSize:10,color:"#94a3b8"}}>Последний анализ: {fmtDate(latestDate)}</div>}
+                  </div>
+                );
+              })}
+            </div>
+            {cats.length === 0 && (
+              <div style={{textAlign:"center",padding:40,color:"#94a3b8",fontSize:13}}>
+                Нет загруженных категорий. Перейдите в конкретную категорию и загрузите файл ассортимента.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Режим конкретной категории */}
+        {!isAll && latestSession && (
+          <div style={{padding:20}}>
+            {/* История сессий */}
+            {sessionList.length > 0 && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#64748b",marginBottom:8,textTransform:"uppercase"}}>История загрузок</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {sessionList.map((s,i) => (
+                    <div key={s.id} style={{background:i===0?"#7c3aed":"#f8fafc",border:`1px solid ${i===0?"#7c3aed":"#e2e8f0"}`,borderRadius:8,padding:"5px 12px",fontSize:11}}>
+                      <span style={{fontWeight:700,color:i===0?"#fff":"#334155"}}>{i===0?"🟢 Текущий":"📅 " + fmtDate(s.date)}</span>
+                      {i>0 && <span style={{color:"#94a3b8",marginLeft:6}}>{s.items.length} SKU</span>}
+                      {i===0 && <span style={{color:"#e9d5ff",marginLeft:6}}>{fmtDate(s.date)} · {s.items.length} SKU</span>}
+                    </div>
+                  ))}
+                </div>
+                {latestSession.period && (
+                  <div style={{fontSize:11,color:"#94a3b8",marginTop:6}}>📅 Период анализа: {latestSession.period}</div>
+                )}
+              </div>
+            )}
+
+            {/* Динамика если есть история */}
+            {hasHistory && <DynamicBlock first={firstSession} latest={latestSession} />}
+
+            {/* Текущий анализ */}
+            <div style={{fontSize:12,fontWeight:700,color:"#0f172a",marginBottom:12}}>
+              {hasHistory ? "Текущее состояние ассортимента" : "Анализ ассортимента"}
+            </div>
+            <SessionKPI session={latestSession} />
+          </div>
+        )}
+
+        {!isAll && !latestSession && (
+          <div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>
+            <div style={{fontSize:32,marginBottom:8}}>📂</div>
+            <div style={{fontSize:13,marginBottom:16}}>Ассортимент по категории "{filter}" ещё не загружен</div>
+            <label style={{background:"#16a34a",border:"none",borderRadius:8,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",color:"#fff",display:"inline-flex",alignItems:"center",gap:8}}>
+              📂 Загрузить файл из 1С
+              <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0]) onUpload(e.target.files[0]); e.target.value="";}}/>
+            </label>
+          </div>
+        )}
+
+        <div style={{padding:"10px 20px",background:"#f8fafc",fontSize:10,color:"#94a3b8",borderTop:"1px solid #f0f0f0"}}>
+          Данные передаются в карточку анализа — AI учитывает текущий ассортимент при рекомендациях
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [trends, setTrends] = useState([]);
   const [dbLoaded, setDbLoaded] = useState(false);
@@ -1027,7 +1298,7 @@ ${list}
   // ── Ассортимент Аяна ──────────────────────────────────────────────────────
   const loadAssortmentFromSupabase = async () => {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?select=*&order=revenue.desc`, {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?select=*&order=session_date.desc,revenue.desc`, {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
       });
       if (r.ok) {
@@ -1100,29 +1371,26 @@ ${list}
 
       if (items.length === 0) throw new Error("Не удалось найти данные в файле");
 
-      // Сохраняем в Supabase — сначала удаляем старые по этой категории
+      // Сохраняем в Supabase — НЕ удаляем старые, добавляем новую сессию
       const cat = items[0].category;
-      await fetch(`${SUPABASE_URL}/rest/v1/assortment?category=eq.${encodeURIComponent(cat)}`, {
-        method: "DELETE",
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      // Вставляем новые батчами по 100
-      for (let i = 0; i < items.length; i += 100) {
+      const sessionId = crypto.randomUUID();
+      const sessionDate = new Date().toISOString();
+      const itemsWithSession = items.map(item => ({...item, session_id: sessionId, session_date: sessionDate}));
+
+      for (let i = 0; i < itemsWithSession.length; i += 100) {
         await fetch(`${SUPABASE_URL}/rest/v1/assortment`, {
           method: "POST",
           headers: {
             apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
             "Content-Type": "application/json", "Prefer": "return=minimal"
           },
-          body: JSON.stringify(items.slice(i, i + 100))
+          body: JSON.stringify(itemsWithSession.slice(i, i + 100))
         });
       }
-      setAssortment(prev => {
-        const kept = prev.filter(a => a.category !== cat);
-        return [...kept, ...items];
-      });
+      // Перезагружаем всё из Supabase чтобы получить актуальную историю
+      await loadAssortmentFromSupabase();
       setAssortmentModal(true);
-      alert(`✅ Загружено ${items.length} SKU категории "${cat}"`);
+      alert(`✅ Загружено ${items.length} SKU. Сессия сохранена в историю.`);
     } catch(e) {
       alert(`❌ Ошибка парсинга: ${e.message}`);
     }
@@ -1881,37 +2149,28 @@ ${assortmentContext}
           </button>
 
           {/* Ассортимент */}
-          {filter === "Все" ? (
-            // В "Все" — сводка по всем загруженным категориям
-            assortment.length > 0 && (
-              <button onClick={()=>setAssortmentModal(true)}
-                style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e",display:"flex",alignItems:"center",gap:6}}>
-                📊 Анализ ассортимента
-                <span style={{background:"#fde68a",color:"#92400e",borderRadius:4,padding:"1px 7px",fontSize:11}}>
-                  {[...new Set(assortment.map(a=>a.category))].length} кат.
-                </span>
-              </button>
-            )
-          ) : (
-            // В конкретной категории — загрузка + анализ
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <label style={{background:"#ffffff",border:`1px solid ${assortment.some(a=>a.category===filter)?"#22c55e":"#f59e0b"}`,borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:assortmentLoading?"not-allowed":"pointer",color:assortment.some(a=>a.category===filter)?"#16a34a":"#b45309",display:"flex",alignItems:"center",gap:6,opacity:assortmentLoading?0.7:1}}
-                title={assortment.some(a=>a.category===filter) ? `Загружен: ${assortment.filter(a=>a.category===filter).length} SKU · Нажми чтобы обновить` : "Загрузить файл ассортимента из 1С"}>
-                {assortmentLoading
-                  ? "⏳ Загружаю..."
-                  : assortment.some(a=>a.category===filter)
-                    ? `✅ ${assortment.filter(a=>a.category===filter).length} SKU загружено`
-                    : `📂 Загрузить ассортимент`}
-                <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0]) parseAssortmentFile(e.target.files[0]); e.target.value="";}} disabled={assortmentLoading}/>
-              </label>
-              {assortment.some(a=>a.category===filter) && (
+          {filter === "Все"
+            ? assortment.length > 0 && (
                 <button onClick={()=>setAssortmentModal(true)}
-                  style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 12px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e"}}>
-                  📊 Анализ
+                  style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e",display:"flex",alignItems:"center",gap:6}}>
+                  📊 Анализ действующего ассортимента Аян
+                  <span style={{background:"#fde68a",color:"#92400e",borderRadius:4,padding:"1px 6px",fontSize:11}}>
+                    {[...new Set(assortment.map(a=>a.category))].length} кат.
+                  </span>
                 </button>
-              )}
-            </div>
-          )}
+              )
+            : (
+                <button onClick={()=>setAssortmentModal(true)}
+                  style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e",display:"flex",alignItems:"center",gap:6}}>
+                  📊 Анализ ассортимента
+                  {assortment.some(a=>a.category===filter) && (
+                    <span style={{background:"#fde68a",color:"#92400e",borderRadius:4,padding:"1px 6px",fontSize:11}}>
+                      {[...new Set(assortment.filter(a=>a.category===filter).map(a=>a.session_id))].length} загр.
+                    </span>
+                  )}
+                </button>
+              )
+          }
 
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
@@ -2403,138 +2662,14 @@ ${assortmentContext}
       )}
 
       {/* ── Модал: Анализ ассортимента ──────────────────────────────────────── */}
-      {assortmentModal && assortment.length > 0 && (
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.55)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"32px 16px",overflowY:"auto"}}
-          onClick={e=>{if(e.target===e.currentTarget)setAssortmentModal(false);}}>
-          <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,width:"100%",maxWidth:900,boxShadow:"0 24px 64px rgba(15,23,42,0.14)",overflow:"hidden"}}>
-            <div style={{padding:"16px 20px",background:"#fffbeb",borderBottom:"1px solid #fde68a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div>
-                <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:2}}>📦 АНАЛИЗ ДЕЙСТВУЮЩЕГО АССОРТИМЕНТА АЯН</div>
-                <div style={{fontSize:16,fontWeight:700,color:"#0f172a"}}>
-                  {assortmentModal && filter==="Все"
-                    ? `Все загруженные категории`
-                    : [...new Set(assortment.map(a=>a.category))].join(", ")}
-                  <span style={{marginLeft:8,fontSize:12,color:"#64748b",fontWeight:400}}>{assortment.length} SKU</span>
-                </div>
-              </div>
-              <button onClick={()=>setAssortmentModal(false)} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#64748b",fontSize:13,fontWeight:700}}>✕</button>
-            </div>
-
-            {/* Сводка по категориям в режиме "Все" */}
-            {(() => {
-              const cats = [...new Set(assortment.map(a=>a.category))];
-              if (cats.length > 1) return (
-                <div style={{padding:"12px 20px",background:"#f8fafc",borderBottom:"1px solid #f0f0f0",display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {cats.map(cat => {
-                    const catItems = assortment.filter(a=>a.category===cat);
-                    const period = catItems[0]?.period;
-                    const uploadedAt = catItems[0]?.uploaded_at;
-                    const dateStr = uploadedAt ? new Date(uploadedAt).toLocaleDateString("ru-KZ",{day:"numeric",month:"short",year:"numeric"}) : null;
-                    return (
-                      <div key={cat} style={{background:"#ffffff",border:"1px solid #fde68a",borderRadius:8,padding:"6px 12px",fontSize:11}}>
-                        <div style={{fontWeight:700,color:"#92400e"}}>{cat}</div>
-                        <div style={{color:"#64748b"}}>{catItems.length} SKU</div>
-                        {period && <div style={{color:"#94a3b8",fontSize:10}}>📅 {period}</div>}
-                        {dateStr && <div style={{color:"#94a3b8",fontSize:10}}>Загружено: {dateStr}</div>}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-              return null;
-            })()}
-
-            {/* KPI */}
-            {(() => {
-              const cats = [...new Set(assortment.map(a=>a.category))];
-              return cats.map(cat => {
-                const catItems = assortment.filter(a=>a.category===cat);
-                const totalRev = catItems.reduce((s,a)=>s+(a.revenue||0),0);
-                const totalQty = catItems.reduce((s,a)=>s+(a.qty||0),0);
-                const slow = catItems.filter(a=>a.qty<10);
-                const negative = catItems.filter(a=>a.margin!==null && a.margin<0);
-                const top5 = [...catItems].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,5);
-                const period = catItems[0]?.period;
-
-                return (
-                  <div key={cat} style={{padding:20,borderBottom:"1px solid #f0f0f0"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                      <div style={{fontSize:13,fontWeight:700,color:"#7c3aed"}}>{cat}</div>
-                      {period && <div style={{fontSize:11,color:"#94a3b8",background:"#f8fafc",padding:"3px 10px",borderRadius:6,border:"1px solid #e2e8f0"}}>📅 Период: {period}</div>}
-                    </div>
-
-                    {/* Метрики */}
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
-                      {[
-                        ["SKU", catItems.length, "#7c3aed"],
-                        ["Оборот", `${(totalRev/1000000).toFixed(1)}M ₸`, "#0f172a"],
-                        ["Продано шт", totalQty.toLocaleString("ru"), "#16a34a"],
-                        ["Убыточных", negative.length, "#ff4d6d"],
-                        ["Медленных <10шт", slow.length, "#f59e0b"],
-                      ].map(([l,v,c])=>(
-                        <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:"8px 10px",border:"1px solid #f0f0f0"}}>
-                          <div style={{fontSize:9,color:"#94a3b8",marginBottom:2,textTransform:"uppercase"}}>{l}</div>
-                          <div style={{fontSize:16,fontWeight:700,color:c}}>{v}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Топ-5 по обороту */}
-                    <div style={{fontSize:11,fontWeight:700,color:"#64748b",marginBottom:6,textTransform:"uppercase"}}>Топ-5 по обороту</div>
-                    <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
-                      {top5.map((item,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 8px",background:i%2===0?"#f8fafc":"#fff",borderRadius:6}}>
-                          <span style={{fontSize:10,color:"#94a3b8",width:16,textAlign:"center"}}>{i+1}</span>
-                          <span style={{flex:1,fontSize:11,color:"#334155"}}>{item.name}</span>
-                          <span style={{fontSize:11,fontWeight:600,color:"#7c3aed"}}>{item.qty.toLocaleString("ru")} шт</span>
-                          {item.avg_price && <span style={{fontSize:10,color:"#94a3b8"}}>{item.avg_price.toLocaleString("ru")} ₸/шт</span>}
-                          <span style={{fontSize:11,fontWeight:600,color:"#0f172a"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
-                          {item.margin !== null && (
-                            <span style={{fontSize:10,fontWeight:700,color:item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Убыточные */}
-                    {negative.length > 0 && (
-                      <div style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
-                        <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d",marginBottom:4}}>🔴 Убыточные SKU — {negative.length} позиций (маржа отрицательная)</div>
-                        <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Продаёте ниже себестоимости — пересмотреть цену или вывести из ассортимента</div>
-                        {[...negative].sort((a,b)=>a.margin-b.margin).map((item,i)=>(
-                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fecaca"}}>
-                            <span style={{flex:1,fontSize:11,color:"#991b1b"}}>{item.name}</span>
-                            <span style={{fontSize:11,fontWeight:700,color:"#ff4d6d",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
-                            <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Медленные */}
-                    {slow.length > 0 && (
-                      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 12px"}}>
-                        <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:4}}>🟡 Медленные SKU — {slow.length} позиций (менее 10 шт за период)</div>
-                        <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Кандидаты на вывод или замену трендовыми позициями</div>
-                        {[...slow].sort((a,b)=>a.qty-b.qty).map((item,i)=>(
-                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fde68a"}}>
-                            <span style={{flex:1,fontSize:11,color:"#92400e"}}>{item.name}</span>
-                            <span style={{fontSize:11,fontWeight:700,color:"#f59e0b",minWidth:40,textAlign:"right"}}>{item.qty} шт</span>
-                            <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(1)}K ₸</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              });
-            })()}
-
-            <div style={{padding:"12px 20px",background:"#f8fafc",fontSize:11,color:"#94a3b8"}}>
-              Данные используются в карточке анализа — AI учитывает текущий ассортимент при рекомендациях
-            </div>
-          </div>
-        </div>
+      {assortmentModal && (
+        <AssortmentModal
+          assortment={assortment}
+          filter={filter}
+          onClose={()=>setAssortmentModal(false)}
+          onUpload={parseAssortmentFile}
+          assortmentLoading={assortmentLoading}
+        />
       )}
 
       {/* Feedback-модал */}
