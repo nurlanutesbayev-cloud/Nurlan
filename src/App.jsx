@@ -1057,8 +1057,20 @@ ${list}
       // Парсим строки — ищем по структуре файла Аяна
       const items = [];
       let categoryName = "Неизвестно";
+      let periodFrom = null;
+      let periodTo = null;
 
       for (const row of rows) {
+        // Период — строка 2: [null, dateFrom, null...null, "-", null...null, dateTo]
+        if (!periodFrom && row[1] && row[10] && row[1] instanceof Date) {
+          periodFrom = row[1];
+          periodTo = row[10];
+        }
+        // Период как строка (Excel иногда хранит как строку)
+        if (!periodFrom && row[1] && typeof row[1] === "string" && row[1].match(/\d{2}\.\d{2}\.\d{4}/)) {
+          periodFrom = row[1];
+          periodTo = row[10];
+        }
         // Определяем категорию из фильтра
         if (row[17] === "В группе из списка" && row[28] && typeof row[28] === "string" && row[28].length < 50) {
           categoryName = row[28];
@@ -1070,9 +1082,21 @@ ${list}
         if (name && typeof name === "string" && name.length > 5 &&
             typeof qty === "number" && qty > 0) {
           const margin = rev && cost && rev > 0 ? Math.round((rev - cost) / rev * 1000) / 10 : null;
-          items.push({ category: categoryName, name: name.trim(), qty: Math.round(qty), revenue: rev || 0, margin });
+          const avgPrice = qty > 0 ? Math.round((rev || 0) / qty) : null;
+          items.push({ category: categoryName, name: name.trim(), qty: Math.round(qty), revenue: rev || 0, margin, avg_price: avgPrice });
         }
       }
+
+      // Форматируем период
+      const formatDate = (d) => {
+        if (!d) return null;
+        if (typeof d === "string") return d.split(" ")[0];
+        if (d instanceof Date) return d.toLocaleDateString("ru-RU");
+        return String(d).split(" ")[0];
+      };
+      const period = periodFrom ? `${formatDate(periodFrom)} — ${formatDate(periodTo) || "н/д"}` : null;
+      // Добавляем период к каждому item для сохранения
+      items.forEach(item => { item.period = period; });
 
       if (items.length === 0) throw new Error("Не удалось найти данные в файле");
 
@@ -2382,12 +2406,17 @@ ${assortmentContext}
                 const totalQty = catItems.reduce((s,a)=>s+(a.qty||0),0);
                 const slow = catItems.filter(a=>a.qty<10);
                 const negative = catItems.filter(a=>a.margin!==null && a.margin<0);
-                const avgMargin = catItems.filter(a=>a.margin!==null).reduce((s,a,_,arr)=>s+a.margin/arr.length,0);
                 const top5 = [...catItems].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,5);
+                const period = catItems[0]?.period;
+                const [showSlow, setShowSlow] = React.useState(false);
+                const [showNeg, setShowNeg]  = React.useState(false);
 
                 return (
                   <div key={cat} style={{padding:20,borderBottom:"1px solid #f0f0f0"}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"#7c3aed",marginBottom:12}}>{cat}</div>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"#7c3aed"}}>{cat}</div>
+                      {period && <div style={{fontSize:11,color:"#94a3b8",background:"#f8fafc",padding:"3px 10px",borderRadius:6,border:"1px solid #e2e8f0"}}>📅 Период: {period}</div>}
+                    </div>
 
                     {/* Метрики */}
                     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
@@ -2395,8 +2424,8 @@ ${assortmentContext}
                         ["SKU", catItems.length, "#7c3aed"],
                         ["Оборот", `${(totalRev/1000000).toFixed(1)}M ₸`, "#0f172a"],
                         ["Продано шт", totalQty.toLocaleString("ru"), "#16a34a"],
-                        [`Убыточных`, negative.length, "#ff4d6d"],
-                        [`Медленных <10шт`, slow.length, "#f59e0b"],
+                        ["Убыточных", negative.length, "#ff4d6d"],
+                        ["Медленных <10шт", slow.length, "#f59e0b"],
                       ].map(([l,v,c])=>(
                         <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:"8px 10px",border:"1px solid #f0f0f0"}}>
                           <div style={{fontSize:9,color:"#94a3b8",marginBottom:2,textTransform:"uppercase"}}>{l}</div>
@@ -2412,7 +2441,8 @@ ${assortmentContext}
                         <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 8px",background:i%2===0?"#f8fafc":"#fff",borderRadius:6}}>
                           <span style={{fontSize:10,color:"#94a3b8",width:16,textAlign:"center"}}>{i+1}</span>
                           <span style={{flex:1,fontSize:11,color:"#334155"}}>{item.name}</span>
-                          <span style={{fontSize:11,fontWeight:600,color:"#7c3aed"}}>{item.qty} шт</span>
+                          <span style={{fontSize:11,fontWeight:600,color:"#7c3aed"}}>{item.qty.toLocaleString("ru")} шт</span>
+                          {item.avg_price && <span style={{fontSize:10,color:"#94a3b8"}}>{item.avg_price.toLocaleString("ru")} ₸/шт</span>}
                           <span style={{fontSize:11,fontWeight:600,color:"#0f172a"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
                           {item.margin !== null && (
                             <span style={{fontSize:10,fontWeight:700,color:item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
@@ -2421,15 +2451,47 @@ ${assortmentContext}
                       ))}
                     </div>
 
-                    {/* Убыточные */}
+                    {/* Убыточные — сворачиваемый блок */}
                     {negative.length > 0 && (
-                      <div style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px"}}>
-                        <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d",marginBottom:6}}>⚠️ Убыточные SKU (маржа отрицательная)</div>
-                        {negative.map((item,i)=>(
-                          <div key={i} style={{fontSize:11,color:"#991b1b",marginBottom:2}}>
-                            {item.name} — маржа {item.margin}%, оборот {(item.revenue/1000).toFixed(0)}K ₸
+                      <div style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}} onClick={()=>setShowNeg(p=>!p)}>
+                          <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d"}}>🔴 Убыточные SKU — {negative.length} позиций</div>
+                          <span style={{fontSize:11,color:"#ff4d6d"}}>{showNeg?"▲ Свернуть":"▼ Развернуть"}</span>
+                        </div>
+                        <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Маржа отрицательная — продаёте ниже себестоимости. Пересмотреть цену или вывести.</div>
+                        {showNeg && (
+                          <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:3}}>
+                            {[...negative].sort((a,b)=>a.margin-b.margin).map((item,i)=>(
+                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fecaca"}}>
+                                <span style={{flex:1,fontSize:11,color:"#991b1b"}}>{item.name}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:"#ff4d6d",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
+                                <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        )}
+                      </div>
+                    )}
+
+                    {/* Медленные — сворачиваемый блок */}
+                    {slow.length > 0 && (
+                      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 12px"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}} onClick={()=>setShowSlow(p=>!p)}>
+                          <div style={{fontSize:11,fontWeight:700,color:"#92400e"}}>🟡 Медленные SKU — {slow.length} позиций</div>
+                          <span style={{fontSize:11,color:"#92400e"}}>{showSlow?"▲ Свернуть":"▼ Развернуть"}</span>
+                        </div>
+                        <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Менее 10 штук за период — кандидаты на вывод или замену трендовыми позициями.</div>
+                        {showSlow && (
+                          <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:3}}>
+                            {[...slow].sort((a,b)=>a.qty-b.qty).map((item,i)=>(
+                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fde68a"}}>
+                                <span style={{flex:1,fontSize:11,color:"#92400e"}}>{item.name}</span>
+                                <span style={{fontSize:11,fontWeight:700,color:"#f59e0b",minWidth:40,textAlign:"right"}}>{item.qty} шт</span>
+                                <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(1)}K ₸</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
