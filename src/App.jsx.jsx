@@ -1880,16 +1880,37 @@ ${assortmentContext}
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
 
-          {/* Загрузка ассортимента */}
-          <label style={{background:"#ffffff",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#b45309",display:"flex",alignItems:"center",gap:6}}>
-            {assortmentLoading ? "⏳ Загружаю..." : `📂 Ассортимент${assortment.length > 0 ? ` (${[...new Set(assortment.map(a=>a.category))].length} кат.)` : ""}`}
-            <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e => { if(e.target.files[0]) parseAssortmentFile(e.target.files[0]); e.target.value=""; }} disabled={assortmentLoading}/>
-          </label>
-          {assortment.length > 0 && (
-            <button onClick={() => setAssortmentModal(true)}
-              style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 14px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e"}}>
-              📊 Анализ ассортимента
-            </button>
+          {/* Ассортимент */}
+          {filter === "Все" ? (
+            // В "Все" — сводка по всем загруженным категориям
+            assortment.length > 0 && (
+              <button onClick={()=>setAssortmentModal(true)}
+                style={{background:"#fffbeb",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e",display:"flex",alignItems:"center",gap:6}}>
+                📊 Анализ ассортимента
+                <span style={{background:"#fde68a",color:"#92400e",borderRadius:4,padding:"1px 7px",fontSize:11}}>
+                  {[...new Set(assortment.map(a=>a.category))].length} кат.
+                </span>
+              </button>
+            )
+          ) : (
+            // В конкретной категории — загрузка + анализ
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <label style={{background:"#ffffff",border:`1px solid ${assortment.some(a=>a.category===filter)?"#22c55e":"#f59e0b"}`,borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:assortmentLoading?"not-allowed":"pointer",color:assortment.some(a=>a.category===filter)?"#16a34a":"#b45309",display:"flex",alignItems:"center",gap:6,opacity:assortmentLoading?0.7:1}}
+                title={assortment.some(a=>a.category===filter) ? `Загружен: ${assortment.filter(a=>a.category===filter).length} SKU · Нажми чтобы обновить` : "Загрузить файл ассортимента из 1С"}>
+                {assortmentLoading
+                  ? "⏳ Загружаю..."
+                  : assortment.some(a=>a.category===filter)
+                    ? `✅ ${assortment.filter(a=>a.category===filter).length} SKU загружено`
+                    : `📂 Загрузить ассортимент`}
+                <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0]) parseAssortmentFile(e.target.files[0]); e.target.value="";}} disabled={assortmentLoading}/>
+              </label>
+              {assortment.some(a=>a.category===filter) && (
+                <button onClick={()=>setAssortmentModal(true)}
+                  style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 12px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e"}}>
+                  📊 Анализ
+                </button>
+              )}
+            </div>
           )}
 
           {filter !== "Все" && !loading && (
@@ -2388,14 +2409,40 @@ ${assortmentContext}
           <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,width:"100%",maxWidth:900,boxShadow:"0 24px 64px rgba(15,23,42,0.14)",overflow:"hidden"}}>
             <div style={{padding:"16px 20px",background:"#fffbeb",borderBottom:"1px solid #fde68a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div>
-                <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:2}}>📦 ТЕКУЩИЙ АССОРТИМЕНТ АЯН</div>
+                <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:2}}>📦 АНАЛИЗ ДЕЙСТВУЮЩЕГО АССОРТИМЕНТА АЯН</div>
                 <div style={{fontSize:16,fontWeight:700,color:"#0f172a"}}>
-                  {[...new Set(assortment.map(a=>a.category))].join(", ")}
+                  {assortmentModal && filter==="Все"
+                    ? `Все загруженные категории`
+                    : [...new Set(assortment.map(a=>a.category))].join(", ")}
                   <span style={{marginLeft:8,fontSize:12,color:"#64748b",fontWeight:400}}>{assortment.length} SKU</span>
                 </div>
               </div>
               <button onClick={()=>setAssortmentModal(false)} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#64748b",fontSize:13,fontWeight:700}}>✕</button>
             </div>
+
+            {/* Сводка по категориям в режиме "Все" */}
+            {(() => {
+              const cats = [...new Set(assortment.map(a=>a.category))];
+              if (cats.length > 1) return (
+                <div style={{padding:"12px 20px",background:"#f8fafc",borderBottom:"1px solid #f0f0f0",display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {cats.map(cat => {
+                    const catItems = assortment.filter(a=>a.category===cat);
+                    const period = catItems[0]?.period;
+                    const uploadedAt = catItems[0]?.uploaded_at;
+                    const dateStr = uploadedAt ? new Date(uploadedAt).toLocaleDateString("ru-KZ",{day:"numeric",month:"short",year:"numeric"}) : null;
+                    return (
+                      <div key={cat} style={{background:"#ffffff",border:"1px solid #fde68a",borderRadius:8,padding:"6px 12px",fontSize:11}}>
+                        <div style={{fontWeight:700,color:"#92400e"}}>{cat}</div>
+                        <div style={{color:"#64748b"}}>{catItems.length} SKU</div>
+                        {period && <div style={{color:"#94a3b8",fontSize:10}}>📅 {period}</div>}
+                        {dateStr && <div style={{color:"#94a3b8",fontSize:10}}>Загружено: {dateStr}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+              return null;
+            })()}
 
             {/* KPI */}
             {(() => {
