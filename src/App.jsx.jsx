@@ -1298,13 +1298,27 @@ ${list}
   // ── Ассортимент Аяна ──────────────────────────────────────────────────────
   const loadAssortmentFromSupabase = async () => {
     try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?select=*&order=session_date.desc,revenue.desc`, {
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-      });
-      if (r.ok) {
+      // Supabase REST лимит 1000 строк — грузим страницами
+      let all = [];
+      let offset = 0;
+      const PAGE = 1000;
+      while (true) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?select=*&order=session_date.desc,revenue.desc&offset=${offset}&limit=${PAGE}`, {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Range-Unit": "items",
+            "Range": `${offset}-${offset+PAGE-1}`
+          }
+        });
+        if (!r.ok) break;
         const data = await r.json();
-        if (data && data.length > 0) setAssortment(data);
+        if (!data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < PAGE) break;
+        offset += PAGE;
       }
+      if (all.length > 0) setAssortment(all);
     } catch(e) { console.error("loadAssortment error:", e.message); }
   };
 
