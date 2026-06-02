@@ -2408,8 +2408,6 @@ ${assortmentContext}
                 const negative = catItems.filter(a=>a.margin!==null && a.margin<0);
                 const top5 = [...catItems].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,5);
                 const period = catItems[0]?.period;
-                const [showSlow, setShowSlow] = React.useState(false);
-                const [showNeg, setShowNeg]  = React.useState(false);
 
                 return (
                   <div key={cat} style={{padding:20,borderBottom:"1px solid #f0f0f0"}}>
@@ -2451,47 +2449,33 @@ ${assortmentContext}
                       ))}
                     </div>
 
-                    {/* Убыточные — сворачиваемый блок */}
+                    {/* Убыточные */}
                     {negative.length > 0 && (
                       <div style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px",marginBottom:8}}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}} onClick={()=>setShowNeg(p=>!p)}>
-                          <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d"}}>🔴 Убыточные SKU — {negative.length} позиций</div>
-                          <span style={{fontSize:11,color:"#ff4d6d"}}>{showNeg?"▲ Свернуть":"▼ Развернуть"}</span>
-                        </div>
-                        <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Маржа отрицательная — продаёте ниже себестоимости. Пересмотреть цену или вывести.</div>
-                        {showNeg && (
-                          <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:3}}>
-                            {[...negative].sort((a,b)=>a.margin-b.margin).map((item,i)=>(
-                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fecaca"}}>
-                                <span style={{flex:1,fontSize:11,color:"#991b1b"}}>{item.name}</span>
-                                <span style={{fontSize:11,fontWeight:700,color:"#ff4d6d",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
-                                <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
-                              </div>
-                            ))}
+                        <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d",marginBottom:4}}>🔴 Убыточные SKU — {negative.length} позиций (маржа отрицательная)</div>
+                        <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Продаёте ниже себестоимости — пересмотреть цену или вывести из ассортимента</div>
+                        {[...negative].sort((a,b)=>a.margin-b.margin).map((item,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fecaca"}}>
+                            <span style={{flex:1,fontSize:11,color:"#991b1b"}}>{item.name}</span>
+                            <span style={{fontSize:11,fontWeight:700,color:"#ff4d6d",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
+                            <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
 
-                    {/* Медленные — сворачиваемый блок */}
+                    {/* Медленные */}
                     {slow.length > 0 && (
                       <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 12px"}}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}} onClick={()=>setShowSlow(p=>!p)}>
-                          <div style={{fontSize:11,fontWeight:700,color:"#92400e"}}>🟡 Медленные SKU — {slow.length} позиций</div>
-                          <span style={{fontSize:11,color:"#92400e"}}>{showSlow?"▲ Свернуть":"▼ Развернуть"}</span>
-                        </div>
-                        <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Менее 10 штук за период — кандидаты на вывод или замену трендовыми позициями.</div>
-                        {showSlow && (
-                          <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:3}}>
-                            {[...slow].sort((a,b)=>a.qty-b.qty).map((item,i)=>(
-                              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fde68a"}}>
-                                <span style={{flex:1,fontSize:11,color:"#92400e"}}>{item.name}</span>
-                                <span style={{fontSize:11,fontWeight:700,color:"#f59e0b",minWidth:40,textAlign:"right"}}>{item.qty} шт</span>
-                                <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(1)}K ₸</span>
-                              </div>
-                            ))}
+                        <div style={{fontSize:11,fontWeight:700,color:"#92400e",marginBottom:4}}>🟡 Медленные SKU — {slow.length} позиций (менее 10 шт за период)</div>
+                        <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Кандидаты на вывод или замену трендовыми позициями</div>
+                        {[...slow].sort((a,b)=>a.qty-b.qty).map((item,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0",borderBottom:"0.5px solid #fde68a"}}>
+                            <span style={{flex:1,fontSize:11,color:"#92400e"}}>{item.name}</span>
+                            <span style={{fontSize:11,fontWeight:700,color:"#f59e0b",minWidth:40,textAlign:"right"}}>{item.qty} шт</span>
+                            <span style={{fontSize:10,color:"#94a3b8",minWidth:70,textAlign:"right"}}>{(item.revenue/1000).toFixed(1)}K ₸</span>
                           </div>
-                        )}
+                        ))}
                       </div>
                     )}
                   </div>
