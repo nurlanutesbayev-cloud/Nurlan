@@ -137,6 +137,41 @@ const sb = {
         headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
       });
     } catch(e) { console.error("deleteHistory error:", e.message); }
+  },
+
+  // ── Оценка ассортимента (кеш) ──────────────────────────────────────────────
+  async getAssessment(category) {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment_assessment?category=eq.${encodeURIComponent(category)}&order=created_at.desc&limit=1&select=*`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      if (!r.ok) return null;
+      const data = await r.json();
+      return data[0] || null;
+    } catch(e) { return null; }
+  },
+  async saveAssessment(category, sessionId, trendsCount, assessment) {
+    try {
+      // Удаляем старые оценки этой категории — храним только свежую
+      await fetch(`${SUPABASE_URL}/rest/v1/assortment_assessment?category=eq.${encodeURIComponent(category)}`, {
+        method: "DELETE",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment_assessment`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json", "Prefer": "return=minimal"
+        },
+        body: JSON.stringify({
+          category,
+          session_id: sessionId || null,
+          trends_count: trendsCount || 0,
+          assessment
+        })
+      });
+      if (!r.ok) console.error("saveAssessment failed:", await r.text());
+    } catch(e) { console.error("saveAssessment error:", e.message); }
   }
 };
 
@@ -741,7 +776,7 @@ function HistoryModal({ filter, currentTrends, onRestore, onClose }) {
 }
 
 // ── Компонент: Анализ ассортимента ────────────────────────────────────────────
-function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoading, onCleanup, cleaningAssortment }) {
+function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assortmentLoading, onCleanup, cleaningAssortment }) {
   // Есть ли в базе строки с нераспознанной категорией (вне официального списка)?
   const VALID_CATS = new Set(CATEGORIES.filter(c => c !== "Все"));
   const brokenCount = assortment.filter(a => !VALID_CATS.has(a.category)).length;
@@ -908,6 +943,188 @@ function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoad
     );
   };
 
+  // ── AI-оценка ассортимента категории (с кешем) ────────────────────────────
+  const AssessmentBlock = ({ session }) => {
+    const [data, setData]       = useState(null);   // результат оценки
+    const [loading, setLoading] = useState(true);
+    const [error, setError]     = useState("");
+    const [fromCache, setFromCache] = useState(false);
+
+    const catTrends = (trends || []).filter(t => t.category === filter);
+    const sessionId = session?.id || "default";
+    const trendsCount = catTrends.length;
+
+    const runAssessment = async (force = false) => {
+      setLoading(true); setError("");
+      try {
+        // 1. Проверяем кеш (если не форсим)
+        if (!force) {
+          const cached = await sb.getAssessment(filter);
+          if (cached && cached.session_id === sessionId && cached.trends_count === trendsCount && cached.assessment) {
+            setData(cached.assessment); setFromCache(true); setLoading(false); return;
+          }
+        }
+        setFromCache(false);
+
+        // 2. Готовим данные для AI
+        const items = session.items;
+        const topSku = [...items].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0, 60);
+        const skuList = topSku.map(a => `${a.name} (${a.qty||0} шт, маржа ${a.margin ?? "?"}%)`).join("\n");
+        const trendList = catTrends.length > 0
+          ? catTrends.map(t => `${t.name}${t.subname?" ("+t.subname+")":""}${t.product_type?" — "+t.product_type:""} [${t.status||""}, heat ${t.heat||"?"}]`).join("\n")
+          : "(тренды по категории ещё не сгенерированы в трекере)";
+
+        const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+        const text = await callAI(`Ты FMCG-эксперт по Казахстану. Сегодня ${today}. Оцени действующий ассортимент категории «${filter}» сети супермаркетов Аян (Караганда, Темиртау, Астана) с точки зрения трендов.
+
+ДЕЙСТВУЮЩИЙ АССОРТИМЕНТ (топ-${topSku.length} SKU по обороту из ${items.length}):
+${skuList}
+
+ТРЕНДОВЫЕ ПОЗИЦИИ ИЗ ТРЕКЕРА (что мы считаем трендом для этой категории):
+${trendList}
+
+ЗАДАЧА:
+1. Сопоставь тренды с реальным ассортиментом ПО СМЫСЛУ (не по точному названию). Например тренд "Little Moons моти" представлен, если в ассортименте есть любое моти-мороженое; тренд "протеиновый йогурт" представлен, если есть высокобелковые йогурты.
+2. Определи, какие тренды УЖЕ представлены, а каких НЕТ (gap).
+3. Дай общую характеристику ассортимента: насколько он современный/трендовый или устаревший.
+4. Дай конкретные рекомендации: что ввести (из отсутствующих трендов) и что вывести (опирайся на убыточные/медленные SKU из списка — низкая маржа или малые продажи).
+
+${catTrends.length === 0 ? "ВАЖНО: трендов из трекера нет — опирайся на свои знания трендов FMCG 2026 для этой категории, но отметь в поле note, что для полного gap-анализа нужно сгенерировать тренды в трекере.\n" : ""}
+Верни ТОЛЬКО валидный JSON объект без markdown:
+{
+  "score": число 1-10 — насколько ассортимент трендовый и современный,
+  "verdict": "Современный" | "Сбалансированный" | "Устаревший",
+  "summary": "2-3 предложения общей оценки на русском",
+  "present_trends": [{"trend":"название тренда","matched_sku":"какой SKU в ассортименте его закрывает","note":"короткий комментарий"}],
+  "missing_trends": [{"trend":"название тренда","priority":"🔴 Высокий"|"🟡 Средний"|"🟢 Низкий","reason":"почему стоит ввести, 1 предложение"}],
+  "recommend_add": ["3-5 конкретных позиций/брендов для ввода"],
+  "recommend_remove": ["3-5 SKU из ассортимента — кандидаты на вывод (убыточные/медленные), с короткой причиной"],
+  "note": "опционально — предупреждение если данных мало"
+}`);
+
+        const cleaned = text.replace(/^[^{]*/, "").replace(/[^}]*$/, "");
+        const parsed = JSON.parse(cleaned);
+        setData(parsed);
+        // 3. Сохраняем в кеш
+        await sb.saveAssessment(filter, sessionId, trendsCount, parsed);
+      } catch(e) {
+        setError("Не удалось сгенерировать оценку: " + e.message);
+      }
+      setLoading(false);
+    };
+
+    useEffect(() => { runAssessment(false); /* eslint-disable-next-line */ }, [filter, sessionId, trendsCount]);
+
+    const SCORE_COLOR = (s) => s >= 7 ? "#16a34a" : s >= 4 ? "#f59e0b" : "#ff4d6d";
+    const VERDICT_CFG = {
+      "Современный":   {bg:"#f0fdf4", border:"#86efac", color:"#16a34a"},
+      "Сбалансированный": {bg:"#fffbeb", border:"#fde68a", color:"#92400e"},
+      "Устаревший":    {bg:"#fff0f4", border:"#fca5a5", color:"#991b1b"},
+    };
+    const PRIORITY_COLOR = {"🔴 Высокий":"#ff4d6d","🟡 Средний":"#f59e0b","🟢 Низкий":"#22c55e"};
+
+    return (
+      <div style={{marginTop:16, marginBottom:8, border:"1px solid #c4b5fd", borderRadius:12, overflow:"hidden"}}>
+        {/* Шапка блока */}
+        <div style={{background:"linear-gradient(135deg,#faf5ff,#f0ebff)", padding:"12px 16px", borderBottom:"1px solid #e9d5ff", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+          <div style={{fontSize:13, fontWeight:700, color:"#6d28d9", display:"flex", alignItems:"center", gap:8}}>
+            🎯 Оценка ассортимента по трендам
+            {fromCache && !loading && <span style={{fontSize:9, fontWeight:600, color:"#94a3b8", background:"#f1f5f9", borderRadius:4, padding:"1px 6px"}}>из кеша</span>}
+          </div>
+          <button onClick={()=>runAssessment(true)} disabled={loading}
+            style={{background:"#fff", border:"1px solid #c4b5fd", borderRadius:7, padding:"5px 12px", fontSize:11, fontWeight:600, color:"#7c3aed", cursor:loading?"not-allowed":"pointer", opacity:loading?0.6:1}}>
+            {loading ? "⏳" : "🔄 Пересчитать"}
+          </button>
+        </div>
+
+        <div style={{padding:16, background:"#fdfcff"}}>
+          {loading && (
+            <div style={{textAlign:"center", padding:24, color:"#7c3aed"}}>
+              <div style={{width:24, height:24, border:"2px solid #e9d5ff", borderTopColor:"#7c3aed", borderRadius:"50%", animation:"spin .8s linear infinite", margin:"0 auto 10px"}}/>
+              <div style={{fontSize:12}}>AI анализирует ассортимент и сопоставляет с трендами...</div>
+            </div>
+          )}
+          {!loading && error && (
+            <div style={{background:"#fff0f4", border:"1px solid #fca5a5", borderRadius:8, padding:12, color:"#991b1b", fontSize:12}}>{error}</div>
+          )}
+          {!loading && data && !error && (
+            <div style={{display:"flex", flexDirection:"column", gap:14}}>
+
+              {/* Скор + вердикт */}
+              <div style={{display:"flex", alignItems:"center", gap:14}}>
+                <div style={{display:"flex", flexDirection:"column", alignItems:"center", minWidth:64}}>
+                  <div style={{fontSize:30, fontWeight:800, color:SCORE_COLOR(data.score||5), lineHeight:1}}>{data.score ?? "—"}</div>
+                  <div style={{fontSize:9, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.06em"}}>из 10</div>
+                </div>
+                <div style={{flex:1}}>
+                  {data.verdict && (() => { const v = VERDICT_CFG[data.verdict] || VERDICT_CFG["Сбалансированный"]; return (
+                    <span style={{display:"inline-block", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:6, background:v.bg, border:`1px solid ${v.border}`, color:v.color, marginBottom:6}}>{data.verdict}</span>
+                  ); })()}
+                  <div style={{fontSize:12, color:"#334155", lineHeight:1.5}}>{data.summary}</div>
+                </div>
+              </div>
+
+              {data.note && (
+                <div style={{fontSize:11, color:"#92400e", background:"#fffbeb", border:"1px solid #fde68a", borderRadius:6, padding:"6px 10px"}}>ℹ️ {data.note}</div>
+              )}
+
+              {/* Представленные тренды */}
+              {Array.isArray(data.present_trends) && data.present_trends.length > 0 && (
+                <div>
+                  <div style={{fontSize:11, fontWeight:700, color:"#16a34a", marginBottom:6}}>✅ Тренды уже на полке ({data.present_trends.length})</div>
+                  <div style={{display:"flex", flexDirection:"column", gap:4}}>
+                    {data.present_trends.map((p,i)=>(
+                      <div key={i} style={{background:"#f0fdf4", border:"1px solid #d1fae5", borderRadius:7, padding:"7px 10px"}}>
+                        <div style={{fontSize:12, fontWeight:600, color:"#15803d"}}>{p.trend}</div>
+                        {p.matched_sku && <div style={{fontSize:11, color:"#64748b", marginTop:1}}>↳ {p.matched_sku}</div>}
+                        {p.note && <div style={{fontSize:10, color:"#94a3b8", marginTop:1}}>{p.note}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Отсутствующие тренды (gap) */}
+              {Array.isArray(data.missing_trends) && data.missing_trends.length > 0 && (
+                <div>
+                  <div style={{fontSize:11, fontWeight:700, color:"#ff4d6d", marginBottom:6}}>🎯 Пробелы — трендов нет в ассортименте ({data.missing_trends.length})</div>
+                  <div style={{display:"flex", flexDirection:"column", gap:4}}>
+                    {data.missing_trends.map((m,i)=>(
+                      <div key={i} style={{background:"#fff0f4", border:"1px solid #fecaca", borderRadius:7, padding:"7px 10px"}}>
+                        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:1}}>
+                          <span style={{fontSize:12, fontWeight:600, color:"#991b1b"}}>{m.trend}</span>
+                          {m.priority && <span style={{fontSize:9, fontWeight:700, color:PRIORITY_COLOR[m.priority]||"#64748b"}}>{m.priority}</span>}
+                        </div>
+                        {m.reason && <div style={{fontSize:11, color:"#64748b"}}>{m.reason}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Рекомендации ввести / вывести */}
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+                {Array.isArray(data.recommend_add) && data.recommend_add.length > 0 && (
+                  <div style={{background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"10px 12px"}}>
+                    <div style={{fontSize:11, fontWeight:700, color:"#16a34a", marginBottom:6}}>➕ Ввести</div>
+                    {data.recommend_add.map((r,i)=>(<div key={i} style={{fontSize:11, color:"#15803d", padding:"2px 0", lineHeight:1.4}}>• {r}</div>))}
+                  </div>
+                )}
+                {Array.isArray(data.recommend_remove) && data.recommend_remove.length > 0 && (
+                  <div style={{background:"#fff0f4", border:"1px solid #fecaca", borderRadius:8, padding:"10px 12px"}}>
+                    <div style={{fontSize:11, fontWeight:700, color:"#ff4d6d", marginBottom:6}}>➖ Вывести</div>
+                    {data.recommend_remove.map((r,i)=>(<div key={i} style={{fontSize:11, color:"#991b1b", padding:"2px 0", lineHeight:1.4}}>• {r}</div>))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.55)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"24px 16px",overflowY:"auto"}}
       onClick={e => { if(e.target===e.currentTarget) onClose(); }}>
@@ -999,6 +1216,9 @@ function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoad
               {hasHistory ? "Текущее состояние ассортимента" : "Анализ ассортимента"}
             </div>
             <SessionKPI session={latestSession} />
+
+            {/* AI-оценка ассортимента по трендам */}
+            <AssessmentBlock session={latestSession} />
           </div>
         )}
 
@@ -2731,6 +2951,7 @@ ${assortmentContext}
         <AssortmentModal
           assortment={assortment}
           filter={filter}
+          trends={trends}
           onClose={()=>setAssortmentModal(false)}
           onUpload={parseAssortmentFile}
           assortmentLoading={assortmentLoading}
