@@ -741,7 +741,10 @@ function HistoryModal({ filter, currentTrends, onRestore, onClose }) {
 }
 
 // ── Компонент: Анализ ассортимента ────────────────────────────────────────────
-function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoading }) {
+function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoading, onCleanup, cleaningAssortment }) {
+  // Есть ли в базе строки с нераспознанной категорией (вне официального списка)?
+  const VALID_CATS = new Set(CATEGORIES.filter(c => c !== "Все"));
+  const brokenCount = assortment.filter(a => !VALID_CATS.has(a.category)).length;
   const SUPABASE_URL = "https://acvbjpjtohtkulmbbpng.supabase.co";
   const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFjdmJqcGp0b2h0a3VsbWJicG5nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyMjg4NzgsImV4cCI6MjA5NDgwNDg3OH0.mLrrZahUIC4Eko56L-PJFfkEVE6e0iDTK_Ipuf4KKVM";
 
@@ -919,6 +922,13 @@ function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoad
             </div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {brokenCount > 0 && onCleanup && (
+              <button onClick={onCleanup} disabled={cleaningAssortment}
+                title="Удалить строки с нераспознанной категорией"
+                style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"8px 14px",fontWeight:600,fontSize:12,cursor:cleaningAssortment?"not-allowed":"pointer",color:"#991b1b",display:"flex",alignItems:"center",gap:6,opacity:cleaningAssortment?0.7:1}}>
+                {cleaningAssortment ? "⏳ Чищу..." : `🧹 Очистить битые (${brokenCount})`}
+              </button>
+            )}
             {!isAll && (
               <label style={{background:"#16a34a",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:600,fontSize:12,cursor:assortmentLoading?"not-allowed":"pointer",color:"#fff",display:"flex",alignItems:"center",gap:6,opacity:assortmentLoading?0.7:1}}>
                 {assortmentLoading ? "⏳ Загружаю..." : "📂 Загрузить новый файл"}
@@ -996,6 +1006,12 @@ function AssortmentModal({ assortment, filter, onClose, onUpload, assortmentLoad
           <div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>
             <div style={{fontSize:32,marginBottom:8}}>📂</div>
             <div style={{fontSize:13,marginBottom:16}}>Ассортимент по категории "{filter}" ещё не загружен</div>
+            {brokenCount > 0 && (
+              <div style={{fontSize:12,color:"#991b1b",background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 14px",marginBottom:16,maxWidth:440,marginLeft:"auto",marginRight:"auto",lineHeight:1.5}}>
+                ⚠️ В базе есть {brokenCount} SKU с нераспознанной категорией (загружены ранее с ошибкой).
+                Нажмите «🧹 Очистить битые» вверху, затем загрузите файл заново.
+              </div>
+            )}
             <label style={{background:"#16a34a",border:"none",borderRadius:8,padding:"10px 20px",fontWeight:600,fontSize:13,cursor:"pointer",color:"#fff",display:"inline-flex",alignItems:"center",gap:8}}>
               📂 Загрузить файл из 1С
               <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e=>{if(e.target.files[0]) onUpload(e.target.files[0]); e.target.value="";}}/>
@@ -1385,6 +1401,13 @@ ${list}
 
       if (items.length === 0) throw new Error("Не удалось найти данные в файле");
 
+      // Файл всегда грузится из конкретной категории (кнопка доступна только когда filter !== "Все").
+      // Категория из самого Excel (row[28]) часто не совпадает с фильтром модалки ("Неизвестно" и т.п.),
+      // из-за чего SKU отфильтровывались и показывалось "0 SKU · 0 загрузок". Привязываем к фильтру.
+      if (filter !== "Все") {
+        items.forEach(item => { item.category = filter; });
+      }
+
       // Сохраняем в Supabase — НЕ удаляем старые, добавляем новую сессию
       const cat = items[0].category;
       const sessionId = crypto.randomUUID();
@@ -1409,6 +1432,34 @@ ${list}
       alert(`❌ Ошибка парсинга: ${e.message}`);
     }
     setAssortmentLoading(false);
+  };
+
+  // ── Чистильщик «битых» строк ассортимента ─────────────────────────────────
+  // Удаляет строки, у которых категория не входит в официальный список CATEGORIES
+  // (например "Неизвестно" или текст, случайно распознанный из Excel row[28]).
+  const [cleaningAssortment, setCleaningAssortment] = useState(false);
+  const cleanupBrokenAssortment = async () => {
+    const validCats = new Set(CATEGORIES.filter(c => c !== "Все"));
+    const broken = [...new Set(assortment.map(a => a.category).filter(c => !validCats.has(c)))];
+    if (broken.length === 0) { alert("Битых категорий не найдено — всё в порядке!"); return; }
+    const brokenCount = assortment.filter(a => !validCats.has(a.category)).length;
+    const msg = `Найдено ${brokenCount} SKU с нераспознанными категориями:\n\n${broken.map(c => `• "${c}"`).join("\n")}\n\nУдалить эти строки из базы? Корректно загруженные категории не пострадают.`;
+    if (!window.confirm(msg)) return;
+    setCleaningAssortment(true);
+    try {
+      for (const cat of broken) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?category=eq.${encodeURIComponent(cat)}`, {
+          method: "DELETE",
+          headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+        });
+        if (!r.ok) console.error("cleanup DELETE failed:", cat, await r.text());
+      }
+      await loadAssortmentFromSupabase();
+      alert(`✅ Удалено ${brokenCount} SKU с битыми категориями. Теперь перезалейте файл из нужной категории.`);
+    } catch(e) {
+      alert(`❌ Ошибка очистки: ${e.message}`);
+    }
+    setCleaningAssortment(false);
   };
 
   // Загружаем ассортимент при старте
@@ -2683,6 +2734,8 @@ ${assortmentContext}
           onClose={()=>setAssortmentModal(false)}
           onUpload={parseAssortmentFile}
           assortmentLoading={assortmentLoading}
+          onCleanup={cleanupBrokenAssortment}
+          cleaningAssortment={cleaningAssortment}
         />
       )}
 
