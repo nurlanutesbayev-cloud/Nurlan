@@ -766,6 +766,9 @@ export default function App() {
   // ── История генераций ──────────────────────────────────────────────────────
   const [historyModal, setHistoryModal] = useState(false);
   const [kmModal, setKmModal]           = useState(false);
+  const [assortmentModal, setAssortmentModal] = useState(false);
+  const [assortment, setAssortment]     = useState([]); // текущий ассортимент Аяна
+  const [assortmentLoading, setAssortmentLoading] = useState(false);
   const [kmDecisions, setKmDecisions]   = useState({});
 
   const [authed, setAuthed] = useState(() => {
@@ -1021,7 +1024,91 @@ ${list}
     alert(`Готово! Заполнено типов: ${filled} из ${missing.length}`);
   };
 
-  // ── Заполнить trend_reason для существующих товаров ───────────────────────
+  // ── Ассортимент Аяна ──────────────────────────────────────────────────────
+  const loadAssortmentFromSupabase = async () => {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/assortment?select=*&order=revenue.desc`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        if (data && data.length > 0) setAssortment(data);
+      }
+    } catch(e) { console.error("loadAssortment error:", e.message); }
+  };
+
+  const parseAssortmentFile = async (file) => {
+    setAssortmentLoading(true);
+    try {
+      // Загружаем SheetJS
+      if (!window.XLSX) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+          s.onload = resolve; s.onerror = reject;
+          document.head.appendChild(s);
+        });
+      }
+      const data = await file.arrayBuffer();
+      const wb = window.XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Парсим строки — ищем по структуре файла Аяна
+      const items = [];
+      let categoryName = "Неизвестно";
+
+      for (const row of rows) {
+        // Определяем категорию из фильтра
+        if (row[17] === "В группе из списка" && row[28] && typeof row[28] === "string" && row[28].length < 50) {
+          categoryName = row[28];
+        }
+        const name = row[1];
+        const qty  = row[16];
+        const rev  = row[26];
+        const cost = row[33];
+        if (name && typeof name === "string" && name.length > 5 &&
+            typeof qty === "number" && qty > 0) {
+          const margin = rev && cost && rev > 0 ? Math.round((rev - cost) / rev * 1000) / 10 : null;
+          items.push({ category: categoryName, name: name.trim(), qty: Math.round(qty), revenue: rev || 0, margin });
+        }
+      }
+
+      if (items.length === 0) throw new Error("Не удалось найти данные в файле");
+
+      // Сохраняем в Supabase — сначала удаляем старые по этой категории
+      const cat = items[0].category;
+      await fetch(`${SUPABASE_URL}/rest/v1/assortment?category=eq.${encodeURIComponent(cat)}`, {
+        method: "DELETE",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+      // Вставляем новые батчами по 100
+      for (let i = 0; i < items.length; i += 100) {
+        await fetch(`${SUPABASE_URL}/rest/v1/assortment`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`,
+            "Content-Type": "application/json", "Prefer": "return=minimal"
+          },
+          body: JSON.stringify(items.slice(i, i + 100))
+        });
+      }
+      setAssortment(prev => {
+        const kept = prev.filter(a => a.category !== cat);
+        return [...kept, ...items];
+      });
+      setAssortmentModal(true);
+      alert(`✅ Загружено ${items.length} SKU категории "${cat}"`);
+    } catch(e) {
+      alert(`❌ Ошибка парсинга: ${e.message}`);
+    }
+    setAssortmentLoading(false);
+  };
+
+  // Загружаем ассортимент при старте
+  useEffect(() => { loadAssortmentFromSupabase(); }, []);
+
+
   const [fillingReasons, setFillingReasons] = useState(false);
   const [fillReasonsProgress, setFillReasonsProgress] = useState("");
 
@@ -1113,7 +1200,14 @@ ${list}
       const brand = item.name.split(" ")[0];
       const category = item.category;
 
-      // ── Шаг 1: ищем реального дистрибьютора в КЗ/РФ ──────────────────────
+      // Текущий ассортимент Аяна по этой категории
+      const catAssortment = assortment.filter(a => a.category === item.category);
+      const assortmentContext = catAssortment.length > 0
+        ? `\nТЕКУЩИЙ АССОРТИМЕНТ АЯН (категория ${item.category}, ${catAssortment.length} SKU):\n` +
+          catAssortment.slice(0,30).map(a=>`- ${a.name} (${a.qty} шт, маржа ${a.margin}%)`).join("\n") +
+          (catAssortment.length > 30 ? `\n... и ещё ${catAssortment.length-30} SKU` : "") +
+          "\n\nИспользуй эти данные: если предлагаемый тренд уже есть в ассортименте — скажи об этом. Если нет — подчеркни что это новинка для Аяна. При рекомендации запуска учитывай что в категории уже много SKU."
+        : "";
       setAnalysisData({_loading_step: "🔍 Ищу дистрибьютора в Казахстане и России..."});
       let distributorInfo = "";
       let tnvedInfo = "";
@@ -1226,6 +1320,7 @@ Magnum: [ЕСТЬ/НЕТ] | цена: [цена или —] | SKU: [назван
 Дистрибьютор (из поиска): ${distributorInfo || "не найден — укажи наиболее вероятный вариант"}
 ТН ВЭД и пошлина (из поиска): ${tnvedInfo || "не найдено — укажи типовой код для категории"}
 Наличие у конкурентов (из реального поиска по сайтам): ${competitorInfo || "поиск не дал результатов — используй свои данные"}
+${assortmentContext}
 
 ВАЖНО ДЛЯ КОНКУРЕНТОВ: используй данные из поиска выше как основу. Обязательно включи в список конкурентов: Arbuz.kz, Magnum, Корзина — даже если их нет (пиши "отсутствует"). Если поиск показал что товар ЕСТЬ — укажи реальную цену. Не выдумывай наличие если поиск ничего не нашёл.
 
@@ -1761,6 +1856,18 @@ Magnum: [ЕСТЬ/НЕТ] | цена: [цена или —] | SKU: [назван
             🗂 Решения КМ{filter!=="Все"?` · ${filter}`:""}
           </button>
 
+          {/* Загрузка ассортимента */}
+          <label style={{background:"#ffffff",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#b45309",display:"flex",alignItems:"center",gap:6}}>
+            {assortmentLoading ? "⏳ Загружаю..." : `📂 Ассортимент${assortment.length > 0 ? ` (${[...new Set(assortment.map(a=>a.category))].length} кат.)` : ""}`}
+            <input type="file" accept=".xls,.xlsx" style={{display:"none"}} onChange={e => { if(e.target.files[0]) parseAssortmentFile(e.target.files[0]); e.target.value=""; }} disabled={assortmentLoading}/>
+          </label>
+          {assortment.length > 0 && (
+            <button onClick={() => setAssortmentModal(true)}
+              style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 14px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#92400e"}}>
+              📊 Анализ ассортимента
+            </button>
+          )}
+
           {filter !== "Все" && !loading && (
             <button onClick={()=>{setFeedbackText(catPrefs[filter]||""); setFeedbackModal(true);}}
               style={{background:"#ffffff",border:"1px solid #7c3aed",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:"pointer",color:"#7c3aed",display:"flex",alignItems:"center",gap:6}}>
@@ -2245,6 +2352,93 @@ Magnum: [ЕСТЬ/НЕТ] | цена: [цена или —] | SKU: [назван
                   💾 Сохранить решения ({Object.keys(kmDecisions).length})
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Модал: Анализ ассортимента ──────────────────────────────────────── */}
+      {assortmentModal && assortment.length > 0 && (
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(15,23,42,0.55)",zIndex:9999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"32px 16px",overflowY:"auto"}}
+          onClick={e=>{if(e.target===e.currentTarget)setAssortmentModal(false);}}>
+          <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:16,width:"100%",maxWidth:900,boxShadow:"0 24px 64px rgba(15,23,42,0.14)",overflow:"hidden"}}>
+            <div style={{padding:"16px 20px",background:"#fffbeb",borderBottom:"1px solid #fde68a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <div style={{fontSize:11,color:"#92400e",fontWeight:700,marginBottom:2}}>📦 ТЕКУЩИЙ АССОРТИМЕНТ АЯН</div>
+                <div style={{fontSize:16,fontWeight:700,color:"#0f172a"}}>
+                  {[...new Set(assortment.map(a=>a.category))].join(", ")}
+                  <span style={{marginLeft:8,fontSize:12,color:"#64748b",fontWeight:400}}>{assortment.length} SKU</span>
+                </div>
+              </div>
+              <button onClick={()=>setAssortmentModal(false)} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"6px 12px",cursor:"pointer",color:"#64748b",fontSize:13,fontWeight:700}}>✕</button>
+            </div>
+
+            {/* KPI */}
+            {(() => {
+              const cats = [...new Set(assortment.map(a=>a.category))];
+              return cats.map(cat => {
+                const catItems = assortment.filter(a=>a.category===cat);
+                const totalRev = catItems.reduce((s,a)=>s+(a.revenue||0),0);
+                const totalQty = catItems.reduce((s,a)=>s+(a.qty||0),0);
+                const slow = catItems.filter(a=>a.qty<10);
+                const negative = catItems.filter(a=>a.margin!==null && a.margin<0);
+                const avgMargin = catItems.filter(a=>a.margin!==null).reduce((s,a,_,arr)=>s+a.margin/arr.length,0);
+                const top5 = [...catItems].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0,5);
+
+                return (
+                  <div key={cat} style={{padding:20,borderBottom:"1px solid #f0f0f0"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#7c3aed",marginBottom:12}}>{cat}</div>
+
+                    {/* Метрики */}
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+                      {[
+                        ["SKU", catItems.length, "#7c3aed"],
+                        ["Оборот", `${(totalRev/1000000).toFixed(1)}M ₸`, "#0f172a"],
+                        ["Продано шт", totalQty.toLocaleString("ru"), "#16a34a"],
+                        [`Убыточных`, negative.length, "#ff4d6d"],
+                        [`Медленных <10шт`, slow.length, "#f59e0b"],
+                      ].map(([l,v,c])=>(
+                        <div key={l} style={{background:"#f8fafc",borderRadius:8,padding:"8px 10px",border:"1px solid #f0f0f0"}}>
+                          <div style={{fontSize:9,color:"#94a3b8",marginBottom:2,textTransform:"uppercase"}}>{l}</div>
+                          <div style={{fontSize:16,fontWeight:700,color:c}}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Топ-5 по обороту */}
+                    <div style={{fontSize:11,fontWeight:700,color:"#64748b",marginBottom:6,textTransform:"uppercase"}}>Топ-5 по обороту</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
+                      {top5.map((item,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 8px",background:i%2===0?"#f8fafc":"#fff",borderRadius:6}}>
+                          <span style={{fontSize:10,color:"#94a3b8",width:16,textAlign:"center"}}>{i+1}</span>
+                          <span style={{flex:1,fontSize:11,color:"#334155"}}>{item.name}</span>
+                          <span style={{fontSize:11,fontWeight:600,color:"#7c3aed"}}>{item.qty} шт</span>
+                          <span style={{fontSize:11,fontWeight:600,color:"#0f172a"}}>{(item.revenue/1000).toFixed(0)}K ₸</span>
+                          {item.margin !== null && (
+                            <span style={{fontSize:10,fontWeight:700,color:item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b",minWidth:50,textAlign:"right"}}>{item.margin}%</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Убыточные */}
+                    {negative.length > 0 && (
+                      <div style={{background:"#fff0f4",border:"1px solid #fca5a5",borderRadius:8,padding:"10px 12px"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#ff4d6d",marginBottom:6}}>⚠️ Убыточные SKU (маржа отрицательная)</div>
+                        {negative.map((item,i)=>(
+                          <div key={i} style={{fontSize:11,color:"#991b1b",marginBottom:2}}>
+                            {item.name} — маржа {item.margin}%, оборот {(item.revenue/1000).toFixed(0)}K ₸
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+
+            <div style={{padding:"12px 20px",background:"#f8fafc",fontSize:11,color:"#94a3b8"}}>
+              Данные используются в карточке анализа — AI учитывает текущий ассортимент при рекомендациях
             </div>
           </div>
         </div>
