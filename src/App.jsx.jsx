@@ -875,14 +875,23 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
         {/* Топ-5 */}
         <div style={{fontSize:11, fontWeight:700, color:"#64748b", marginBottom:6, textTransform:"uppercase"}}>Топ-5 по обороту</div>
         <div style={{display:"flex", flexDirection:"column", gap:3, marginBottom:12}}>
+          {/* Заголовки колонок */}
+          <div style={{display:"flex", alignItems:"center", gap:8, padding:"0 8px 4px", fontSize:9, fontWeight:700, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.04em", borderBottom:"1px solid #f0f0f0"}}>
+            <span style={{width:16, textAlign:"center"}}>#</span>
+            <span style={{flex:1}}>Товар</span>
+            <span>Продано</span>
+            <span style={{minWidth:60, textAlign:"right"}}>Цена/шт</span>
+            <span style={{minWidth:60, textAlign:"right"}}>Оборот</span>
+            <span style={{minWidth:50, textAlign:"right"}}>Маржа</span>
+          </div>
           {top5.map((item,i) => (
             <div key={i} style={{display:"flex", alignItems:"center", gap:8, padding:"5px 8px", background:i%2===0?"#f8fafc":"#fff", borderRadius:6}}>
               <span style={{fontSize:10, color:"#94a3b8", width:16, textAlign:"center"}}>{i+1}</span>
               <span style={{flex:1, fontSize:11, color:"#334155"}}>{item.name}</span>
               <span style={{fontSize:11, fontWeight:600, color:"#7c3aed"}}>{(item.qty||0).toLocaleString("ru")} шт</span>
-              {item.avg_price && <span style={{fontSize:10, color:"#94a3b8"}}>{item.avg_price.toLocaleString("ru")} ₸/шт</span>}
-              <span style={{fontSize:11, fontWeight:600, color:"#0f172a"}}>{fmtRev(item.revenue||0)}</span>
-              {item.margin !== null && <span style={{fontSize:10, fontWeight:700, color:item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b", minWidth:50, textAlign:"right"}}>{item.margin}%</span>}
+              <span style={{fontSize:10, color:"#94a3b8", minWidth:60, textAlign:"right"}}>{item.avg_price ? item.avg_price.toLocaleString("ru")+" ₸" : "—"}</span>
+              <span style={{fontSize:11, fontWeight:600, color:"#0f172a", minWidth:60, textAlign:"right"}}>{fmtRev(item.revenue||0)}</span>
+              <span style={{fontSize:10, fontWeight:700, color:item.margin==null?"#cbd5e1":item.margin<0?"#ff4d6d":item.margin>20?"#16a34a":"#64748b", minWidth:50, textAlign:"right"}}>{item.margin!=null?item.margin+"%":"—"}</span>
             </div>
           ))}
         </div>
@@ -892,6 +901,11 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
           <div style={{background:"#fff0f4", border:"1px solid #fca5a5", borderRadius:8, padding:"10px 12px", marginBottom:8}}>
             <div style={{fontSize:11, fontWeight:700, color:"#ff4d6d", marginBottom:4}}>🔴 Убыточные SKU — {negative.length} позиций</div>
             <div style={{fontSize:10, color:"#94a3b8", marginBottom:6}}>Продаёте ниже себестоимости — пересмотреть цену или вывести</div>
+            <div style={{display:"flex", gap:8, padding:"0 0 4px", fontSize:9, fontWeight:700, color:"#c2848f", textTransform:"uppercase", letterSpacing:"0.04em", borderBottom:"1px solid #fecaca"}}>
+              <span style={{flex:1}}>Товар</span>
+              <span style={{minWidth:50, textAlign:"right"}}>Маржа</span>
+              <span style={{minWidth:65, textAlign:"right"}}>Оборот</span>
+            </div>
             {[...negative].sort((a,b) => a.margin-b.margin).map((item,i) => (
               <div key={i} style={{display:"flex", gap:8, padding:"3px 0", borderBottom:"0.5px solid #fecaca"}}>
                 <span style={{flex:1, fontSize:11, color:"#991b1b"}}>{item.name}</span>
@@ -907,6 +921,11 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
           <div style={{background:"#fffbeb", border:"1px solid #fde68a", borderRadius:8, padding:"10px 12px"}}>
             <div style={{fontSize:11, fontWeight:700, color:"#92400e", marginBottom:4}}>🟡 Медленные SKU — {slow.length} позиций (менее 10 шт за период)</div>
             <div style={{fontSize:10, color:"#94a3b8", marginBottom:6}}>Кандидаты на вывод или замену трендовыми позициями</div>
+            <div style={{display:"flex", gap:8, padding:"0 0 4px", fontSize:9, fontWeight:700, color:"#b08a3c", textTransform:"uppercase", letterSpacing:"0.04em", borderBottom:"1px solid #fde68a"}}>
+              <span style={{flex:1}}>Товар</span>
+              <span style={{minWidth:40, textAlign:"right"}}>Продано</span>
+              <span style={{minWidth:65, textAlign:"right"}}>Оборот</span>
+            </div>
             {[...slow].sort((a,b) => a.qty-b.qty).map((item,i) => (
               <div key={i} style={{display:"flex", gap:8, padding:"3px 0", borderBottom:"0.5px solid #fde68a"}}>
                 <span style={{flex:1, fontSize:11, color:"#92400e"}}>{item.name}</span>
