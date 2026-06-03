@@ -870,10 +870,22 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
         }
         setFromCache(false);
 
-        // 2. Готовим данные для AI — только названия SKU (без продаж и маржи)
+        // 2. Готовим данные для AI — только названия SKU (без продаж и маржи).
+        // Дедуплицируем по названию (один товар может быть в обоих городах),
+        // берём весь уникальный ассортимент с потолком 600 позиций.
         const items = session.items;
-        const sampleSku = [...items].sort((a,b)=>(b.revenue||0)-(a.revenue||0)).slice(0, 80);
-        const skuList = sampleSku.map(a => a.name).join("\n");
+        const MAX_SKU = 600;
+        const seen = new Set();
+        const uniqueSku = [];
+        for (const a of [...items].sort((x,y)=>(y.revenue||0)-(x.revenue||0))) {
+          const key = (a.name||"").trim().toLowerCase();
+          if (!key || seen.has(key)) continue;
+          seen.add(key); uniqueSku.push(a.name);
+        }
+        const totalUnique = uniqueSku.length;
+        const sampleSku = uniqueSku.slice(0, MAX_SKU);
+        const truncated = totalUnique > MAX_SKU;
+        const skuList = sampleSku.map(n => "- " + n).join("\n");
         const trendList = catTrends.length > 0
           ? catTrends.map(t => `${t.name}${t.subname?" ("+t.subname+")":""}${t.product_type?" — "+t.product_type:""} [${t.status||""}, heat ${t.heat||"?"}]`).join("\n")
           : "(тренды по категории ещё не сгенерированы в трекере)";
@@ -882,7 +894,7 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
         const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
         const text = await callAI(`Ты FMCG-эксперт по Казахстану. Сегодня ${today}. Оцени действующий ассортимент категории «${filter}» сети супермаркетов Аян по срезу: ${cityLabel}. Сеть работает в городах Караганда, Темиртау, Астана.
 
-ДЕЙСТВУЮЩИЙ АССОРТИМЕНТ (${sampleSku.length} позиций из ${items.length}):
+ДЕЙСТВУЮЩИЙ АССОРТИМЕНТ (${truncated ? `${sampleSku.length} из ${totalUnique} уникальных позиций` : `все ${totalUnique} уникальных позиций`}):
 ${skuList}
 
 ТРЕНДОВЫЕ ПОЗИЦИИ ИЗ ТРЕКЕРА (что мы считаем трендом для этой категории):
