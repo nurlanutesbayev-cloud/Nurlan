@@ -874,7 +874,7 @@ function AssortmentModal({ assortment, filter, trends, onClose, onUpload, assort
         // Дедуплицируем по названию (один товар может быть в обоих городах),
         // берём весь уникальный ассортимент с потолком 600 позиций.
         const items = session.items;
-        const MAX_SKU = 600;
+        const MAX_SKU = 2000;
         const seen = new Set();
         const uniqueSku = [];
         for (const a of [...items].sort((x,y)=>(y.revenue||0)-(x.revenue||0))) {
