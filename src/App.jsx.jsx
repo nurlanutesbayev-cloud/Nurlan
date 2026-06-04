@@ -264,27 +264,44 @@ async function callAI(prompt) {
   return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
 }
 
-// Вызов AI с веб-поиском для верификации конкурентов
+// Пауза (для троттлинга запросов)
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Вызов AI с веб-поиском для верификации конкурентов.
+// При 429 (rate limit) / 529 (overloaded) — повтор с нарастающей задержкой.
 async function callAISearch(prompt) {
   const apiKey = import.meta.env.VITE_ANTHROPIC_KEY;
-  const resp = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "anthropic-version": "2023-06-01",
-      "x-api-key": apiKey,
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4000,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const data = await resp.json();
-  return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
+  const MAX_RETRIES = 4;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const resp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": apiKey,
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4000,
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      return (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").replace(/```json|```/gi, "").trim();
+    }
+    // 429 = превышен лимит, 529 = перегрузка — ждём и повторяем
+    if ((resp.status === 429 || resp.status === 529) && attempt < MAX_RETRIES) {
+      const retryAfter = Number(resp.headers.get("retry-after")) || 0;
+      const wait = Math.max(retryAfter * 1000, 2000 * Math.pow(2, attempt)); // 2с,4с,8с,16с
+      await sleep(wait);
+      continue;
+    }
+    throw new Error(`HTTP ${resp.status}`);
+  }
+  throw new Error("HTTP 429 (исчерпаны попытки)");
 }
 
 // Верификация конкурентов через реальный поиск по сайтам
@@ -1741,6 +1758,8 @@ ${list}
         if (updated[idx].id) sb.updateOne(updated[idx].id, patch);
         setTrends([...updated]);
       }
+      // Пауза между позициями — не упираться в rate limit API
+      if (i < pool.length - 1) await sleep(1500);
     }
 
     setCheckingReady(false);
