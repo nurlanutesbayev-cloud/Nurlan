@@ -49,6 +49,7 @@ const sb = {
       kanban: t.kanban || "idea",
       request_num: t.request_num || "",
       request_status: t.request_status || "—",
+      distributor: t.distributor || "",
     }));
     await fetch(`${SUPABASE_URL}/rest/v1/trends?id=gte.00000000-0000-0000-0000-000000000000`, {
       method: "DELETE",
@@ -238,7 +239,7 @@ const KANBAN_COLS = [
   {id:"nosupplier",  label:"🔍 Поставщик не найден",    color:"#fbbf24"},
   {id:"nodeal",      label:"🚫 Не договорились",        color:"#ff4d6d"},
 ];
-const BASE = {product_type:"", trend_reason:"", procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—"};
+const BASE = {product_type:"", trend_reason:"", procurement_ready:"🟡 Ищем поставщика", price_range:"—", competitors:[], kanban:"idea", request_num:"", request_status:"—", distributor:""};
 
 const FALLBACK = [
   {...BASE, name:"Корейская лапша Buldak", subname:"Samyang", category:"Готовая еда", status:"🔥 Горячий", heat:10, region:"Азия", instagram_idea:"Reaction-видео с самой острой лапшей — viral-контент!", russia_status:"Активно продаётся", russia_detail:"Wildberries, Ozon, азиатские маркеты", kz_status:"Активно продаётся", kz_detail:"Kaspi, Magnum, Small, азиатские маркеты Алматы", social1_platform:"TikTok", social1_desc:"#buldakchallenge — 2 млрд просмотров", social2_platform:"Instagram", social2_desc:"Reaction-видео казахстанских блогеров", procurement_ready:"🟢 Готов к закупке", price_range:"800–1 200 ₸", competitors:["Magnum","Small"]},
@@ -1266,6 +1267,7 @@ export default function App() {
          "Молочка, Высокобелковые, Бытовая химия, Кондитерка, Здоровое питание",
          "Морепродукты, Детское питание, Мама и младенец, Колбасные изделия, Соусы, Овощи и фрукты, Хлебобулочные, Алкоголь, Консервация, Free From / Без..."];
     const all = [];
+    let finalTrends = null;
     try {
       for (let i=0;i<batches.length;i++) {
         setProgress(targetCat ? `Генерирую: ${targetCat}...` : `Шаг ${i+1}/${batches.length} — ${batches[i]}`);
@@ -1324,7 +1326,6 @@ export default function App() {
       }
       if (all.length===0) throw new Error("AI вернул пустой ответ");
 
-      let finalTrends;
       if (targetCat) {
         const kept = trends.filter(t => t.category !== targetCat);
         finalTrends = [...kept, ...all];
@@ -1333,7 +1334,14 @@ export default function App() {
         finalTrends = all;
         setTrends(all);
       }
-      await sb.upsertAll(finalTrends);
+      const inserted = await sb.upsertAll(finalTrends);
+      // Подтягиваем id из ответа БД (нужно для последующих PATCH, напр. автопроверки)
+      if (Array.isArray(inserted) && inserted.length > 0) {
+        const idByKey = {};
+        inserted.forEach(row => { idByKey[`${row.name}||${row.category}`] = row.id; });
+        finalTrends = finalTrends.map(t => idByKey[`${t.name}||${t.category}`] ? {...t, id: idByKey[`${t.name}||${t.category}`]} : t);
+        setTrends(finalTrends);
+      }
 
       // ── Сохраняем в историю генераций ─────────────────────────────────────
       setProgress(targetCat ? `Сохраняю в историю...` : `Сохраняю в историю...`);
@@ -1352,6 +1360,12 @@ export default function App() {
       }
     } catch(e) { setError(e.message); }
     setLoading(false); setProgress("");
+
+    // Автопроверка готовности к закупке — только для конкретной категории
+    // (при "Все" не запускаем, чтобы не вешать процесс на 200+ поисков).
+    if (targetCat && finalTrends) {
+      try { await checkProcurementReadiness(true, finalTrends); } catch(e) { console.error("auto checkReady:", e.message); }
+    }
   };
 
   // ── Восстановление генерации из истории ───────────────────────────────────
@@ -1670,6 +1684,68 @@ ${list}
     setFillingReasons(false);
     setFillReasonsProgress("");
     alert(`Готово! Заполнено причин: ${filled} из ${missing.length}`);
+  };
+
+  // ── Проверка готовности к закупке: поиск дистрибьютора в РФ/РК ─────────────
+  const [checkingReady, setCheckingReady] = useState(false);
+  const [checkReadyProgress, setCheckReadyProgress] = useState("");
+
+  const checkProcurementReadiness = async (silent = false, explicitTrends = null) => {
+    const source = explicitTrends || trends;
+    const targetCat = filter === "Все" ? null : filter;
+    const pool = targetCat ? source.filter(t => t.category === targetCat) : source;
+    if (pool.length === 0) { if (!silent) alert("Нет позиций для проверки."); return; }
+    if (!silent && !window.confirm(`Проверить наличие дистрибьютора в РФ/РК для ${pool.length} позиций${targetCat?` категории «${targetCat}»`:""}?\n\nПо каждой идёт реальный веб-поиск — займёт ~${Math.ceil(pool.length*4/60)} мин. Зелёный статус получат только позиции с подтверждённым поставщиком.`)) return;
+
+    setCheckingReady(true);
+    let updated = [...source];
+    let foundCount = 0, downgraded = 0;
+
+    for (let i = 0; i < pool.length; i++) {
+      const t = pool[i];
+      setCheckReadyProgress(`${i+1}/${pool.length} — ${t.name.slice(0,30)}`);
+      const brand = t.name.split(" ")[0];
+      let found = false, distName = "";
+      try {
+        const res = await callAISearch(`Найди официального дистрибьютора или поставщика товара "${t.name}" (бренд: ${brand}, категория: ${t.category}) в Казахстане или России.
+Ищи: "${brand} дистрибьютор Казахстан", "${brand} официальный дистрибьютор Россия", "${brand} поставщик оптом", "${brand} купить оптом РК".
+
+Ответь СТРОГО в формате JSON без markdown:
+{"found": true или false, "distributor": "название компании + страна + сайт если есть, или пусто"}
+
+ПРАВИЛО: found=true ТОЛЬКО если ты реально нашёл конкретную компанию-дистрибьютора или официального поставщика/импортёра (не просто маркетплейс типа Wildberries/Ozon, а именно дистрибьютора бренда). Если нашёл только розничные продажи без поставщика — found=false. Лучше честное false, чем выдуманный дистрибьютор.`);
+        const m = res.match(/\{[\s\S]*\}/);
+        if (m) {
+          const parsed = JSON.parse(m[0]);
+          if (parsed.found === true && parsed.distributor && parsed.distributor.trim().length > 3) {
+            found = true; distName = parsed.distributor.trim().slice(0, 300);
+          }
+        }
+      } catch(e) { console.error("checkReady error:", t.name, e.message); }
+
+      const idx = updated.findIndex(u => u.name === t.name);
+      if (idx === -1) continue;
+      let patch = {};
+      if (found) {
+        patch = { procurement_ready: "🟢 Готов к закупке", distributor: distName };
+        foundCount++;
+      } else {
+        // Понижаем до жёлтого, если был зелёный (и недоступные в КЗ не трогаем)
+        if (updated[idx].procurement_ready === "🟢 Готов к закупке") {
+          patch = { procurement_ready: "🟡 Ищем поставщика" };
+          downgraded++;
+        }
+      }
+      if (Object.keys(patch).length > 0) {
+        updated[idx] = { ...updated[idx], ...patch };
+        if (updated[idx].id) sb.updateOne(updated[idx].id, patch);
+        setTrends([...updated]);
+      }
+    }
+
+    setCheckingReady(false);
+    setCheckReadyProgress("");
+    if (!silent) alert(`Проверка завершена.\n🟢 Готов к закупке: ${foundCount}\n🟡 Понижено (дистрибьютор не найден): ${downgraded}`);
   };
 
   const generatePost = async (item) => {
@@ -2386,6 +2462,13 @@ ${assortmentContext}
               💬 Уточнить запрос
             </button>
           )}
+          {!loading && (
+            <button onClick={()=>checkProcurementReadiness(false)} disabled={checkingReady}
+              title="Поиск дистрибьютора в РФ/РК — зелёный статус только при подтверждённом поставщике"
+              style={{background:checkingReady?"#f1f5f9":"#f0fdf4",border:"1px solid #22c55e",borderRadius:8,padding:"10px 16px",fontWeight:600,fontSize:12,cursor:checkingReady?"not-allowed":"pointer",color:"#16a34a",display:"flex",alignItems:"center",gap:6,opacity:checkingReady?0.7:1}}>
+              {checkingReady ? `⏳ Проверка ${checkReadyProgress}` : `✅ Проверить готовность${filter!=="Все"?` · ${filter}`:""}`}
+            </button>
+          )}
           {filter !== "Все" && rejectedBrands[filter] && rejectedBrands[filter].length > 0 && (
             <div style={{display:"flex",alignItems:"center",gap:6,background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:8,padding:"6px 12px",fontSize:11}}>
               <span style={{color:"#92400e"}}>👎 Отклонено: {rejectedBrands[filter].join(", ")}</span>
@@ -2530,6 +2613,7 @@ ${assortmentContext}
                       </td>
                       <td style={TD}>
                         {t.supply_source ? <span style={{fontSize:12,fontWeight:600,color:"#a78bfa"}}>{t.supply_source}</span> : <span style={{fontSize:11,color:"#64748b"}}>—</span>}
+                        {t.distributor && <div style={{fontSize:10,color:"#16a34a",marginTop:3,lineHeight:1.3}} title={t.distributor}>🏭 {t.distributor.length>60?t.distributor.slice(0,60)+"…":t.distributor}</div>}
                       </td>
                       <td style={TD}>
                         <button style={{fontSize:11,padding:"5px 10px",background:"linear-gradient(135deg,rgba(255,77,109,0.2),rgba(124,58,237,0.2))",border:"1px solid #7c3aed",color:"#c4b5fd",borderRadius:7,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}} onClick={()=>generatePost(t)}>📱 Контент</button>
