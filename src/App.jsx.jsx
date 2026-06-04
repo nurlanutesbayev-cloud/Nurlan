@@ -1712,42 +1712,55 @@ ${list}
     const targetCat = filter === "Все" ? null : filter;
     const pool = targetCat ? source.filter(t => t.category === targetCat) : source;
     if (pool.length === 0) { if (!silent) alert("Нет позиций для проверки."); return; }
-    if (!silent && !window.confirm(`Проверить наличие дистрибьютора в РФ/РК для ${pool.length} позиций${targetCat?` категории «${targetCat}»`:""}?\n\nПо каждой идёт реальный веб-поиск — займёт ~${Math.ceil(pool.length*4/60)} мин. Зелёный статус получат только позиции с подтверждённым поставщиком.`)) return;
+    if (!silent && !window.confirm(`Оценить готовность к закупке для ${pool.length} позиций${targetCat?` категории «${targetCat}»`:""}?\n\nAI оценит по своим знаниям, у каких брендов есть дистрибьютор/импортёр в РФ или РК. 🟢 получат только позиции с вероятным поставщиком. Это быстро (один запрос).`)) return;
 
     setCheckingReady(true);
     let updated = [...source];
     let foundCount = 0, downgraded = 0;
 
-    for (let i = 0; i < pool.length; i++) {
-      const t = pool[i];
-      setCheckReadyProgress(`${i+1}/${pool.length} — ${t.name.slice(0,30)}`);
-      const brand = t.name.split(" ")[0];
-      let found = false, distName = "";
-      try {
-        const res = await callAISearch(`Найди официального дистрибьютора или поставщика товара "${t.name}" (бренд: ${brand}, категория: ${t.category}) в Казахстане или России.
-Ищи: "${brand} дистрибьютор Казахстан", "${brand} официальный дистрибьютор Россия", "${brand} поставщик оптом", "${brand} купить оптом РК".
+    // Батч-режим: один обычный запрос на всю категорию (без веб-поиска).
+    // Веб-поиск по каждой позиции упирается в rate limit Tier 1 — поэтому
+    // используем знания модели о дистрибьюторах брендов в РФ/РК.
+    setCheckReadyProgress(`анализ ${pool.length} позиций...`);
+    const today = new Date().toLocaleDateString("ru-RU", {day:"numeric", month:"long", year:"numeric"});
+    const list = pool.map((t, i) => `${i+1}. ${t.name}${t.subname?` (${t.subname})`:""} — категория: ${t.category}`).join("\n");
 
-Ответь СТРОГО в формате JSON без markdown:
-{"found": true или false, "distributor": "название компании + страна + сайт если есть, или пусто"}
+    let verdicts = [];
+    try {
+      const text = await callAI(`Сегодня ${today}. Ты эксперт по дистрибуции FMCG в Казахстане и России. Для сети супермаркетов Аян (Караганда, Темиртау, Астана) определи, можно ли реально закупить каждую позицию — то есть есть ли у бренда официальный дистрибьютор, импортёр или оптовый поставщик в Казахстане или России.
 
-ПРАВИЛО: found=true ТОЛЬКО если ты реально нашёл конкретную компанию-дистрибьютора или официального поставщика/импортёра (не просто маркетплейс типа Wildberries/Ozon, а именно дистрибьютора бренда). Если нашёл только розничные продажи без поставщика — found=false. Лучше честное false, чем выдуманный дистрибьютор.`);
-        const m = res.match(/\{[\s\S]*\}/);
-        if (m) {
-          const parsed = JSON.parse(m[0]);
-          if (parsed.found === true && parsed.distributor && parsed.distributor.trim().length > 3) {
-            found = true; distName = parsed.distributor.trim().slice(0, 300);
-          }
-        }
-      } catch(e) { console.error("checkReady error:", t.name, e.message); }
+Список (${pool.length} позиций):
+${list}
 
-      const idx = updated.findIndex(u => u.name === t.name);
-      if (idx === -1) continue;
+Для каждой позиции верни вердикт:
+- ready=true ТОЛЬКО если ты достаточно уверен, что у бренда есть официальный дистрибьютор/импортёр/оптовый поставщик в РФ или РК (через которого реально закупиться). Параллельный импорт и продажи на маркетплейсах без поставщика — это НЕ ready.
+- ready=false если поставка затруднена, бренд не представлен официально, или ты не уверен. Лучше честное false.
+- distributor — если ready=true, укажи известного дистрибьютора/импортёра + страну (кратко). Если не знаешь конкретное имя, но уверен что поставщик есть — напиши "есть официальный импорт в РФ/РК". Если ready=false — пустая строка.
+
+Верни ТОЛЬКО JSON массив без markdown, ровно ${pool.length} объектов в порядке списка:
+[{"i":1,"ready":true,"distributor":"название + страна"},{"i":2,"ready":false,"distributor":""}]`);
+      verdicts = parseJsonArray(text) || [];
+    } catch(e) {
+      console.error("checkReady batch error:", e.message);
+      setCheckingReady(false);
+      setCheckReadyProgress("");
+      if (!silent) alert(`Не удалось выполнить проверку: ${e.message}`);
+      return;
+    }
+
+    pool.forEach((t, i) => {
+      const v = verdicts.find(x => Number(x.i) === i+1) || verdicts[i];
+      const idx = updated.findIndex(u => u.name === t.name && u.category === t.category);
+      if (idx === -1) return;
       let patch = {};
-      if (found) {
+      if (v && v.ready === true) {
+        const distName = (v.distributor && String(v.distributor).trim().length > 2)
+          ? String(v.distributor).trim().slice(0, 300)
+          : "Поставщик в РФ/РК (по данным AI)";
         patch = { procurement_ready: "🟢 Готов к закупке", distributor: distName };
         foundCount++;
       } else {
-        // Понижаем до жёлтого, если был зелёный (и недоступные в КЗ не трогаем)
+        // Понижаем до жёлтого, если был зелёный (недоступные в КЗ не трогаем)
         if (updated[idx].procurement_ready === "🟢 Готов к закупке") {
           patch = { procurement_ready: "🟡 Ищем поставщика" };
           downgraded++;
@@ -1756,15 +1769,13 @@ ${list}
       if (Object.keys(patch).length > 0) {
         updated[idx] = { ...updated[idx], ...patch };
         if (updated[idx].id) sb.updateOne(updated[idx].id, patch);
-        setTrends([...updated]);
       }
-      // Пауза между позициями — не упираться в rate limit API
-      if (i < pool.length - 1) await sleep(5000);
-    }
+    });
+    setTrends([...updated]);
 
     setCheckingReady(false);
     setCheckReadyProgress("");
-    if (!silent) alert(`Проверка завершена.\n🟢 Готов к закупке: ${foundCount}\n🟡 Понижено (дистрибьютор не найден): ${downgraded}`);
+    if (!silent) alert(`Проверка завершена (по данным AI, без веб-поиска).\n🟢 Готов к закупке: ${foundCount}\n🟡 Понижено: ${downgraded}\n\nℹ️ Это оценка по знаниям AI о дистрибьюторах. Точную проверку конкретной позиции делайте через карточку анализа 📋.`);
   };
 
   const generatePost = async (item) => {
